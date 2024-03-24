@@ -37,7 +37,7 @@
                 android:layout_marginLeft="35dp"
                 android:layout_marginBottom="10dp"
                 android:layout_weight="1"
-                android:checked="false"
+                android:checked="true"
                 android:scaleX="2"
                 android:scaleY="2"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large" />
@@ -95,8 +95,9 @@
                 android:id="@+id/DAOToggleSwitch"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
                 android:layout_marginLeft="35dp"
+                android:layout_marginTop="20dp"
+                android:checked="true"
                 android:scaleX="2"
                 android:scaleY="2"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large" />
@@ -113,7 +114,8 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="32dp"
                 android:layout_marginEnd="8dp"
-                android:padding="8dp"/>
+                android:padding="8dp"
+                android:spinnerMode="dropdown" />
 
             <EditText
                 android:id="@+id/editDAOText"
@@ -123,8 +125,8 @@
                 android:layout_weight="1"
                 android:ems="10"
                 android:enabled="false"
-                android:inputType="text"
-                android:text="Random data size (in Mb)" />
+                android:hint="Random data size (in Mb)"
+                android:inputType="number|numberDecimal" />
         </LinearLayout>
 
     </LinearLayout>
@@ -132,7 +134,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="8dp"
+        android:layout_margin="16dp"
         android:orientation="horizontal">
 
         <Button
@@ -166,7 +168,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:gravity="center"
-            android:textSize="20sp" />
+            android:textSize="10sp" />
     </ScrollView>
 
 

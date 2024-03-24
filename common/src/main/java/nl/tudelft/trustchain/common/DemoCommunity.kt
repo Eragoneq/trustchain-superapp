@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.common
 
+import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
@@ -11,8 +12,10 @@ import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
+import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload.TransferStatus.ACCEPT
+import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload.TransferStatus.REQUEST
+import nl.tudelft.ipv8.messaging.utp.UtpEndpoint.Companion.BUFFER_SIZE
 import java.net.DatagramPacket
-import java.net.DatagramSocket
 import java.net.InetAddress
 import java.util.Date
 
@@ -25,9 +28,7 @@ class DemoCommunity : Community() {
 
     val punctureChannel = MutableSharedFlow<Pair<Address, PuncturePayload>>(0, 10000)
 
-    var serverWanPort: Int? = null
-    var senderDataSize: Int? = null
-    var receivedDataSize: Int? = null
+    val puncturedUtpPort: MutableMap<Peer, TransferRequestPayload?> = mutableMapOf()
 
     // Retrieve the trustchain community
     private fun getTrustChainCommunity(): TrustChainCommunity {
@@ -81,27 +82,37 @@ class DemoCommunity : Community() {
 
     // Client / Sender
     fun sendTransferRequest(
-        address: IPv4Address,
-        portToOpen: Int,
+        peer: Peer,
+        portToOpen: Int = 13377,
         dataSize: Int
     ) {
-        val payload = TransferRequestPayload(portToOpen, dataSize)
+        val address = peer.address
+        Log.d("uTP Client", "Sending transfer request to $address")
+        val payload = TransferRequestPayload(portToOpen, REQUEST, dataSize)
         val packet = serializePacket(MessageId.TRANSFER_REQUEST, payload, sign = false)
-        endpoint.send(address, packet)
+        val datagramPacket = DatagramPacket(packet, packet.size, address.toSocketAddress())
+        endpoint.utpEndpoint?.sendRawClientData(datagramPacket)
+        puncturedUtpPort[peer] = null
     }
 
 
     // Server / Receiver
     private fun onTransferRequest(packet: Packet) {
-        val payload = packet.getPayload(TransferRequestPayload.Deserializer)
-        payload.dataSize = senderDataSize ?: 0
+        Log.d("uTP Server", "Received transfer request from ${packet.source}")
+        val payload = packet
+            .getPayload(TransferRequestPayload.Deserializer).let {
+                TransferRequestPayload(
+                    status = ACCEPT, // Accept the transfer request by default
+                    port = endpoint.utpEndpoint?.port ?: 13377,
+                    dataSize = if (it.dataSize > BUFFER_SIZE) BUFFER_SIZE else it.dataSize
+                )
+            }
         if (packet.source is IPv4Address) {
             // Transfer Request Response
             sendData(
                 serializePacket(MessageId.TRANSFER_REQUEST_RESPONSE, payload, sign = false),
                 (packet.source as IPv4Address).ip,
                 (packet.source as IPv4Address).port,
-                payload.port
             )
         }
     }
@@ -109,20 +120,32 @@ class DemoCommunity : Community() {
     /**
      * Respond to client with packet data
      */
-    private fun sendData(data: ByteArray, serverIp: String, clientPort: Int, serverPort: Int) {
-        try {
-            val address = InetAddress.getByName(serverIp)
-            DatagramSocket(serverPort).use {
-                val packet = DatagramPacket(data, data.size, address, clientPort)
-                it.send(packet)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    private fun sendData(data: ByteArray, serverIp: String, clientPort: Int) {
+        Log.d("uTP Server", "Sending puncture data to $serverIp:$clientPort")
+        val address = InetAddress.getByName(serverIp)
+        val dgPacket = DatagramPacket(data, data.size, address, clientPort)
+        endpoint.utpEndpoint?.sendServerData(dgPacket)
     }
 
     private fun onTransferRequestResponse(packet: Packet) {
-        this.serverWanPort = (packet.source as IPv4Address).port
-        this.receivedDataSize = packet.getPayload(TransferRequestPayload.Deserializer).dataSize
+        // Get peer with a given address
+        val peer = getPeers().find {
+            if (packet.source is IPv4Address) it.address.ip == (packet.source as IPv4Address).ip
+            else false
+        }
+        val payload = packet.getPayload(TransferRequestPayload.Deserializer).let { payload ->
+            TransferRequestPayload(
+                port = if (packet.source is IPv4Address) (packet.source as IPv4Address).port else payload.port,
+                status = payload.status,
+                dataSize = payload.dataSize
+            )
+        }
+
+        if (peer != null) {
+            puncturedUtpPort[peer] = payload
+            Log.d("uTP Client", "Received transfer request response from $peer with port ${packet.source}")
+        } else {
+            Log.e("uTP Client", "Peer not found for ${packet.source}!")
+        }
     }
 }
