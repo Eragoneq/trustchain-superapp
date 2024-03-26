@@ -91,7 +91,9 @@ class DemoCommunity : Community() {
         val payload = TransferRequestPayload(portToOpen, REQUEST, dataSize)
         val packet = serializePacket(MessageId.TRANSFER_REQUEST, payload, sign = false)
         val datagramPacket = DatagramPacket(packet, packet.size, address.toSocketAddress())
+        // Send puncture packet
         endpoint.utpEndpoint?.sendRawClientData(datagramPacket)
+//        endpoint.send(address, packet)
         puncturedUtpPort[peer] = null
     }
 
@@ -120,11 +122,20 @@ class DemoCommunity : Community() {
     /**
      * Respond to client with packet data
      */
-    private fun sendData(data: ByteArray, serverIp: String, clientPort: Int) {
-        Log.d("uTP Server", "Sending puncture data to $serverIp:$clientPort")
-        val address = InetAddress.getByName(serverIp)
+    private fun sendData(data: ByteArray, clientIp: String, clientPort: Int) {
+        Log.d("uTP Server", "Sending puncture data to $clientIp:$clientPort")
+        val address = InetAddress.getByName(clientIp)
         val dgPacket = DatagramPacket(data, data.size, address, clientPort)
+        Log.d("uTP Server", "Sending puncture to $address:$clientPort")
         endpoint.utpEndpoint?.sendServerData(dgPacket)
+
+        val peer = getPeers().find {
+            it.address.ip == clientIp
+        }
+        if (peer != null) {
+            Log.d("uTP Server", "Sending response to IPv8 port ${peer.address}")
+            endpoint.utpEndpoint?.sendServerData(DatagramPacket(data, data.size, InetAddress.getByName(peer.address.ip), peer.address.port))
+        } else Log.d("uTP Server", "No client peer found for response!")
     }
 
     private fun onTransferRequestResponse(packet: Packet) {
@@ -143,7 +154,7 @@ class DemoCommunity : Community() {
 
         if (peer != null) {
             puncturedUtpPort[peer] = payload
-            Log.d("uTP Client", "Received transfer request response from $peer with port ${packet.source}")
+            Log.d("uTP Client", "Received transfer request response from ${peer.address} port ${packet.source}")
         } else {
             Log.e("uTP Client", "Peer not found for ${packet.source}!")
         }
