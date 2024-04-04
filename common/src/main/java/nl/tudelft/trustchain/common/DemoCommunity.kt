@@ -93,7 +93,7 @@ class DemoCommunity : Community() {
         val datagramPacket = DatagramPacket(packet, packet.size, address.toSocketAddress())
         // Send puncture packet
         endpoint.utpEndpoint?.sendRawClientData(datagramPacket)
-//        endpoint.send(address, packet)
+        endpoint.send(address, packet)
         puncturedUtpPort[peer] = null
     }
 
