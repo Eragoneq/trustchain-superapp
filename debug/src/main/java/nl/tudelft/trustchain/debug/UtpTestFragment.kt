@@ -34,6 +34,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     private val endpoint = getUtpCommunity().endpoint.udpEndpoint
 
     private var ipv8Mode: Boolean = false
+    private val peerStatus: MutableMap<Peer, Status> = mutableMapOf()
     private val viewToPeerMap: MutableMap<View, Peer> = mutableMapOf()
     private val logMap: MutableMap<Short, TextView> = HashMap()
     private val connectionInfoMap: MutableMap<Short, ConnectionInfo> = HashMap()
@@ -51,7 +52,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             Log.d(LOG_TAG, "Adding peer " + peer.toString())
             val layoutInflater: LayoutInflater = this.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
             val v: View = layoutInflater.inflate(R.layout.peer_component, null)
-
+            peerStatus[peer] = Status.IDLE
             val peerComponentBinding = PeerComponentBinding.bind(v)
             peerComponentBinding.peerIP.setText(peer.address.ip)
             peerComponentBinding.peerPublicKey.setText(peer.publicKey.toString().substring(0, 6))
@@ -117,6 +118,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                 lifecycleScope.launchWhenCreated {
                     sendTestData(peer)
                 }
+                peerStatus[peer] = Status.SENT
                 Log.d(LOG_TAG, "sending data to peer $address")
                 updatePeerStatus(peer)
             }
@@ -163,7 +165,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         utpPacket: UtpPacket,
         source: InetAddress
     ) {
-        // if connection is not know, do nothing
+        // if connection is not known, do nothing
         val connectionId = utpPacket.connectionId
 
         if (!logMap.containsKey(connectionId)) {
@@ -191,7 +193,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         connectionId: Short,
         source: InetAddress
     ) {
-        // if connection is not know, do nothing
+        // if connection is not known, do nothing
         if (!logMap.containsKey(connectionId)) {
             return
         }
@@ -264,6 +266,12 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         endpoint?.sendUtp(IPv4Address(ip, port), csv3.readBytes())
         csv3.close()
         csv13.close()
+
+        activity?.runOnUiThread {
+            val logView = TextView(this.context)
+            logView.setText(String.format("Data sent to %s:%d", ip, port))
+            binding.connectionLogLayout.addView(logView)
+        }
     }
 
     private fun getPeers() {
@@ -287,6 +295,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
     private fun updatePeerStatus(peer: Peer?) {
         val statusIndicator = findStatusIndicator(peer)
+        statusIndicator.setBackgroundResource(R.drawable.indicator_orange);
         // Change status indicator depending on peer status.
         // statusIndicator.setBackgroundResource(R.drawable.indicator_yellow)
     }
@@ -328,4 +337,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private data class ConnectionInfo(val source: InetAddress, val connectionStartTimestamp: Long, var dataTransferred: Int)
+}
+
+enum class Status {
+    IDLE, SENT, RECEIVED
 }
