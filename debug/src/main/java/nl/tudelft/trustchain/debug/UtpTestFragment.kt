@@ -11,10 +11,16 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.core.view.children
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import net.utp4j.data.UtpPacket
 import net.utp4j.data.UtpPacketUtils
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload
+import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload.TransferType
 import nl.tudelft.ipv8.messaging.utp.UtpCommunity
 import nl.tudelft.ipv8.messaging.utp.UtpIPv8Endpoint.Companion.BUFFER_SIZE
 import nl.tudelft.trustchain.common.ui.BaseFragment
@@ -49,7 +55,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
         for (peer in peers) {
             Log.d(LOG_TAG, "Adding peer " + peer.toString())
-            val layoutInflater: LayoutInflater = this.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+            val layoutInflater: LayoutInflater =
+                this.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
             val v: View = layoutInflater.inflate(R.layout.peer_component, null)
 
             val peerComponentBinding = PeerComponentBinding.bind(v)
@@ -92,7 +99,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                 binding.editDAOText.isEnabled = false
 
                 // Hardcoded files
-                val files = ArrayAdapter(it.context, android.R.layout.simple_spinner_item, namedFiles)
+                val files =
+                    ArrayAdapter(it.context, android.R.layout.simple_spinner_item, namedFiles)
                 binding.DAOSpinner.adapter = files
                 binding.DAOSpinner.setSelection(0)
             } else {
@@ -144,7 +152,10 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
 
         // store info on connection in map
-        connectionInfoMap.put((connectionId + 1).toShort(), ConnectionInfo(source, SystemClock.uptimeMillis(), 0))
+        connectionInfoMap.put(
+            (connectionId + 1).toShort(),
+            ConnectionInfo(source, SystemClock.uptimeMillis(), 0)
+        )
 
         // create new log section in fragment
         activity?.runOnUiThread {
@@ -181,7 +192,13 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             activity?.runOnUiThread {
                 val logView = logMap.get(connectionId)
 
-                logView?.setText(String.format("%s: receiving data, sequence number #%d", source, utpPacket.sequenceNumber))
+                logView?.setText(
+                    String.format(
+                        "%s: receiving data, sequence number #%d",
+                        source,
+                        utpPacket.sequenceNumber
+                    )
+                )
                 logView?.postInvalidate()
             }
         }
@@ -203,7 +220,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             val logView = logMap.get(connectionId)
 
             val dataTransferred = formatDataTransferredMessage(connectionInfo.dataTransferred)
-            val transferTime = (SystemClock.uptimeMillis() - connectionInfo.connectionStartTimestamp).div(1000.0)
+            val transferTime =
+                (SystemClock.uptimeMillis() - connectionInfo.connectionStartTimestamp).div(1000.0)
             val transferSpeed = formatTransferSpeed(connectionInfo.dataTransferred, transferTime)
 
             logView?.setText(
@@ -235,17 +253,42 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     ): String {
         val bytesPerSecond = numBytes.div(time)
 
-        if (bytesPerSecond < 1_000) {
-            return String.format("%.2f B/s", bytesPerSecond)
+        return if (bytesPerSecond < 1_000) {
+            String.format("%.2f B/s", bytesPerSecond)
         } else if (bytesPerSecond < 1_000_000) {
-            return String.format("%.2f KiB/s", bytesPerSecond / 1_000)
+            String.format("%.2f KiB/s", bytesPerSecond / 1_000)
         } else {
-            return String.format("%.2f MiB/s", bytesPerSecond / 1_000_000)
+            String.format("%.2f MiB/s", bytesPerSecond / 1_000_000)
         }
     }
 
     private fun sendTestData(peer: Peer) {
-        sendTestData(peer.address.ip, peer.address.port)
+        val csv3 = resources.openRawResource(R.raw.votes3)
+        val csv13 = resources.openRawResource(R.raw.votes13)
+        val bytes = csv3.readBytes()
+        getUtpCommunity().sendTransferRequest(peer, "votes3.csv", bytes.size, TransferType.FILE)
+        // Wait for response or timeout
+        val payload = runBlocking {
+            Log.d(LOG_TAG, "Waiting for response from $peer")
+            val response = withTimeoutOrNull(5000) {
+                while (!getUtpCommunity().transferRequests.containsKey(peer.mid)) { /* no-op */ }
+                Log.d(LOG_TAG, "Received response from $peer")
+                return@withTimeoutOrNull getUtpCommunity().transferRequests.remove(peer.mid)
+            }
+            return@runBlocking response
+        }
+        if (payload == null) {
+            Log.d(LOG_TAG, "No response from $peer, aborting transfer")
+            return
+        }
+        if (payload.status == TransferRequestPayload.TransferStatus.DECLINE) {
+            Log.d(LOG_TAG, "Peer $peer declined transfer")
+            return
+        }
+        Log.d("uTP Client", "Sending data to $peer")
+        endpoint?.sendUtp(IPv4Address(peer.address.ip, peer.address.port), bytes)
+        csv3.close()
+        csv13.close()
     }
 
     private fun sendTestData(
@@ -255,11 +298,11 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         val csv3 = resources.openRawResource(R.raw.votes3)
         val csv13 = resources.openRawResource(R.raw.votes13)
 
-//            // 100 MB of random bytes + hash
-//            val buffer = generateRandomDataBuffer()
-//            // Send CSV file
-//            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
-//            buffer.put(csv3.readBytes())
+//        // 100 MB of random bytes + hash
+//        val buffer = generateRandomDataBuffer()
+//        // Send CSV file
+//        val buffer = ByteBuffer.allocate(BUFFER_SIZE)
+//        buffer.put(csv3.readBytes())
         Log.d("uTP Client", "Sending data to $ip:$port")
         endpoint?.sendUtp(IPv4Address(ip, port), csv3.readBytes())
         csv3.close()
@@ -293,7 +336,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
     private fun findStatusIndicator(peer: Peer?): View {
         // Find the status indicator in the UI for this peer
-        val peerLayout = viewToPeerMap.entries.find { it.value == peer }?.key ?: error("Layout for peer $peer not found")
+        val peerLayout = viewToPeerMap.entries.find { it.value == peer }?.key
+            ?: error("Layout for peer $peer not found")
         val statusIndicator =
             peerLayout.findViewById<View>(
                 R.id.peerStatusIndicator
@@ -319,7 +363,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun getUtpCommunity(): UtpCommunity {
-        return getIpv8().getOverlay() ?: throw IllegalStateException("UtpCommunity is not configured")
+        return getIpv8().getOverlay()
+            ?: throw IllegalStateException("UtpCommunity is not configured")
     }
 
     companion object {
@@ -327,5 +372,9 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         const val LOG_TAG = "uTP Debug"
     }
 
-    private data class ConnectionInfo(val source: InetAddress, val connectionStartTimestamp: Long, var dataTransferred: Int)
+    private data class ConnectionInfo(
+        val source: InetAddress,
+        val connectionStartTimestamp: Long,
+        var dataTransferred: Int
+    )
 }
