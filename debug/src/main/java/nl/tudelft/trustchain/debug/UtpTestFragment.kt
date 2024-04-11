@@ -11,9 +11,7 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.core.view.children
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import net.utp4j.data.UtpPacket
 import net.utp4j.data.UtpPacketUtils
@@ -22,6 +20,8 @@ import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload
 import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload.TransferType
 import nl.tudelft.ipv8.messaging.utp.UtpCommunity
+import nl.tudelft.ipv8.messaging.utp.UtpHelper
+import nl.tudelft.ipv8.messaging.utp.UtpHelper.NamedResource
 import nl.tudelft.ipv8.messaging.utp.UtpIPv8Endpoint.Companion.BUFFER_SIZE
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
@@ -78,18 +78,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         // Named resources
         val namedFiles =
             listOf(
-                object {
-                    val name: String = "votes3.csv"
-                    val id: Int = R.raw.votes3
-
-                    override fun toString(): String = name
-                },
-                object {
-                    val name: String = "votes13.csv"
-                    val id: Int = R.raw.votes3
-
-                    override fun toString(): String = name
-                }
+                NamedResource("votes3.csv", R.raw.votes3),
+                NamedResource("votes13.csv", R.raw.votes13),
             )
 
         binding.DAOToggleSwitch.setOnClickListener {
@@ -263,32 +253,16 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun sendTestData(peer: Peer) {
-        val csv3 = resources.openRawResource(R.raw.votes3)
-        val csv13 = resources.openRawResource(R.raw.votes13)
-        val bytes = csv3.readBytes()
-        getUtpCommunity().sendTransferRequest(peer, "votes3.csv", bytes.size, TransferType.FILE)
-        // Wait for response or timeout
-        val payload = runBlocking {
-            Log.d(LOG_TAG, "Waiting for response from $peer")
-            val response = withTimeoutOrNull(5000) {
-                while (!getUtpCommunity().transferRequests.containsKey(peer.mid)) { /* no-op */ }
-                Log.d(LOG_TAG, "Received response from $peer")
-                return@withTimeoutOrNull getUtpCommunity().transferRequests.remove(peer.mid)
-            }
-            return@runBlocking response
-        }
-        if (payload == null) {
-            Log.d(LOG_TAG, "No response from $peer, aborting transfer")
+        val item = binding.DAOSpinner.selectedItem as NamedResource?
+        if (item == null) {
+            Log.e(LOG_TAG, "No file selected")
             return
         }
-        if (payload.status == TransferRequestPayload.TransferStatus.DECLINE) {
-            Log.d(LOG_TAG, "Peer $peer declined transfer")
-            return
-        }
-        Log.d("uTP Client", "Sending data to $peer")
-        endpoint?.sendUtp(IPv4Address(peer.address.ip, peer.address.port), bytes)
-        csv3.close()
-        csv13.close()
+        val csv = resources.openRawResource(item.id)
+        val bytes = csv.readBytes()
+        csv.close()
+        val item1 = item.copy(size = bytes.size)
+        getUtpCommunity().utpHelper.sendFileData(peer, item1, bytes)
     }
 
     private fun sendTestData(
@@ -377,4 +351,5 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         val connectionStartTimestamp: Long,
         var dataTransferred: Int
     )
+
 }
