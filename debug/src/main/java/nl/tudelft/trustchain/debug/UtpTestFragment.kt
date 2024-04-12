@@ -39,7 +39,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
     private val endpoint = getUtpCommunity().endpoint.udpEndpoint
 
-    private var ipv8Mode: Boolean = false
     private val viewToPeerMap: MutableMap<View, Peer> = mutableMapOf()
     private val logMap: MutableMap<Short, TextView> = HashMap()
     private val connectionInfoMap: MutableMap<Short, ConnectionInfo> = HashMap()
@@ -84,6 +83,10 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
         binding.DAOToggleSwitch.setOnClickListener {
             if (binding.DAOToggleSwitch.isChecked) {
+                // Use random data
+                binding.DAOSpinner.isEnabled = false
+                binding.editDAOText.isEnabled = true
+            } else {
                 // Use CSV files
                 binding.DAOSpinner.isEnabled = true
                 binding.editDAOText.isEnabled = false
@@ -93,10 +96,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                     ArrayAdapter(it.context, android.R.layout.simple_spinner_item, namedFiles)
                 binding.DAOSpinner.adapter = files
                 binding.DAOSpinner.setSelection(0)
-            } else {
-                // Use random data
-                binding.DAOSpinner.isEnabled = false
-                binding.editDAOText.isEnabled = true
             }
         }
 
@@ -253,6 +252,11 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun sendTestData(peer: Peer) {
+        if (binding.DAOToggleSwitch.isChecked) {
+            val size = binding.editDAOText.text.toString().toInt()
+            getUtpCommunity().utpHelper.sendRandomData(peer, size)
+            return
+        }
         val item = binding.DAOSpinner.selectedItem as NamedResource?
         if (item == null) {
             Log.e(LOG_TAG, "No file selected")
@@ -269,18 +273,21 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         ip: String,
         port: Int
     ) {
-        val csv3 = resources.openRawResource(R.raw.votes3)
-        val csv13 = resources.openRawResource(R.raw.votes13)
-
-//        // 100 MB of random bytes + hash
-//        val buffer = generateRandomDataBuffer()
-//        // Send CSV file
-//        val buffer = ByteBuffer.allocate(BUFFER_SIZE)
-//        buffer.put(csv3.readBytes())
-        Log.d("uTP Client", "Sending data to $ip:$port")
-        endpoint?.sendUtp(IPv4Address(ip, port), csv3.readBytes())
-        csv3.close()
-        csv13.close()
+        val bytes: ByteArray
+        if (binding.DAOToggleSwitch.isChecked) {
+            val size = binding.editDAOText.text.toString().toInt()
+            bytes = UtpHelper.generateRandomDataBuffer(size)
+        } else {
+            val item = binding.DAOSpinner.selectedItem as NamedResource?
+            if (item == null) {
+                Log.e(LOG_TAG, "No file selected")
+                return
+            }
+            val csv = resources.openRawResource(item.id)
+            bytes = csv.readBytes()
+            csv.close()
+        }
+        endpoint?.sendUtp(IPv4Address(ip, port), bytes)
     }
 
     private fun getPeers() {
@@ -317,23 +324,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                 R.id.peerStatusIndicator
             ) ?: error("Status indicator in layout for peer $peer not found")
         return statusIndicator
-    }
-
-    private fun generateRandomDataBuffer(): ByteBuffer {
-        Log.d("uTP Client", "Start preparing buffer!")
-        val rngByteArray = ByteArray(BUFFER_SIZE + 32)
-        Random.nextBytes(rngByteArray, 0, BUFFER_SIZE)
-        Log.d("uTP Client", "Fill random bytes!")
-        // Create hash to check correctness
-        Log.d("uTP Client", "Create hash!")
-        val buffer = ByteBuffer.wrap(rngByteArray)
-        // Create hash to check correctness
-        Log.d("uTP Client", "Create hash!")
-        val hash = MessageDigest.getInstance("SHA-256").digest(rngByteArray)
-        buffer.position(BUFFER_SIZE)
-        buffer.put(hash)
-        Log.d("uTP Client", "Generated random data with hash $hash")
-        return buffer
     }
 
     private fun getUtpCommunity(): UtpCommunity {
