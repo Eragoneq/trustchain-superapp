@@ -124,12 +124,22 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
         endpoint?.utpIPv8Endpoint?.rawPacketListeners?.add { packet ->
             val utpPacket = UtpPacketUtils.extractUtpPacket(packet)
+
+            println("---- seq, ack, id: " + utpPacket.sequenceNumber + " " + utpPacket.ackNumber + " " + utpPacket.connectionId)
+
             if (UtpPacketUtils.isSynPkt(utpPacket)) {
-                startConnectionLog(utpPacket.connectionId, packet.address)
-            } else if (utpPacket.windowSize == 0) {
+                startConnectionLog((utpPacket.connectionId + 1).toShort(), packet.address)
+            }
+            else if (utpPacket.ackNumber == 1.toShort()) {
+                startConnectionLog((utpPacket.connectionId).toShort(), packet.address)
+            }
+            else if (utpPacket.windowSize == 0) {
                 finalizeConnectionLog(utpPacket.connectionId, packet.address)
-            } else {
-                updateConnectionLog(utpPacket, packet.address)
+            } else if (utpPacket.sequenceNumber > 0){
+                //
+                logDataPacket(utpPacket, packet.address)
+            } else if (utpPacket.ackNumber > 0) {
+                logAckPacket(utpPacket, packet.address)
             }
         }
     }
@@ -144,46 +154,73 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
 
         // store info on connection in map
-        connectionInfoMap.put((connectionId + 1).toShort(), ConnectionInfo(source, SystemClock.uptimeMillis(), 0))
+        connectionInfoMap.put(
+            connectionId,
+            ConnectionInfo(source, SystemClock.uptimeMillis(), 0)
+        )
 
         // create new log section in fragment
         activity?.runOnUiThread {
             val logView = TextView(this.context)
-            logView.setText(String.format("%s: Connected", source))
+            logView.setText(String.format("%s: Connecting... %d", source, connectionId))
 
             binding.connectionLogLayout.addView(logView)
 
             synchronized(logMap) {
-                logMap.put((connectionId + 1).toShort(), logView)
+                logMap.put(connectionId, logView)
             }
         }
     }
 
-    private fun updateConnectionLog(
-        utpPacket: UtpPacket,
-        source: InetAddress
-    ) {
-        // if connection is not know, do nothing
-        val connectionId = utpPacket.connectionId
+    private fun isConnectionKnown(utpPacket: UtpPacket): Boolean {
+        return logMap.containsKey(utpPacket.connectionId)
+    }
+    private fun logAckPacket(utpPacket: UtpPacket, address: InetAddress) {
+        if (!isConnectionKnown(utpPacket))
+            return
 
-        if (!logMap.containsKey(connectionId)) {
+        // only display every 50th ack
+        // TODO: too much updating of UI causes frame drop, change to periodic update from render thread
+//        if (utpPacket.ackNumber % 50 != 0)
+//            return
+
+        val logMessage = String.format(
+            "%s: receiving data, received sequence number #%d",
+            address,
+            utpPacket.ackNumber
+        )
+
+        updateConnectionLog(utpPacket.connectionId, logMessage)
+    }
+
+    private fun logDataPacket(utpPacket: UtpPacket, address: InetAddress) {
+        if (!isConnectionKnown(utpPacket)) {
+            println("connection " + utpPacket.connectionId + " is unknown, only have " + connectionInfoMap.keys)
             return
         }
 
-        // update ConnectionInfo
-        // TODO: retransmitted packets currently count towards data transferred, but shouldn't
-        connectionInfoMap[connectionId]!!.dataTransferred += utpPacket.payload.size
-
-        // display current ack number
+        // only display every 50th ack
         // TODO: too much updating of UI causes frame drop, change to periodic update from render thread
-        // temporary solution: do not display every
-        if (utpPacket.sequenceNumber % 50 == 0) {
-            activity?.runOnUiThread {
-                val logView = logMap.get(connectionId)
+        if (utpPacket.sequenceNumber % 50 != 0)
+            return
 
-                logView?.setText(String.format("%s: receiving data, sequence number #%d", source, utpPacket.sequenceNumber))
-                logView?.postInvalidate()
-            }
+        val logMessage = String.format(
+            "%s: sending data, received ack number #%d",
+            address,
+            utpPacket.sequenceNumber
+        )
+
+        updateConnectionLog(utpPacket.connectionId, logMessage)
+    }
+
+    private fun updateConnectionLog(
+        connectionId: Short,
+        logMessage: String
+    ) {
+        activity?.runOnUiThread {
+            val logView = logMap.get(connectionId)
+            logView?.setText(logMessage)
+            logView?.postInvalidate()
         }
     }
 
@@ -203,7 +240,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             val logView = logMap.get(connectionId)
 
             val dataTransferred = formatDataTransferredMessage(connectionInfo.dataTransferred)
-            val transferTime = (SystemClock.uptimeMillis() - connectionInfo.connectionStartTimestamp).div(1000.0)
+            val transferTime =
+                (SystemClock.uptimeMillis() - connectionInfo.connectionStartTimestamp).div(1000.0)
             val transferSpeed = formatTransferSpeed(connectionInfo.dataTransferred, transferTime)
 
             logView?.setText(
@@ -223,9 +261,9 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         if (numBytes < 1_000) {
             return String.format("%d B", numBytes)
         } else if (numBytes < 1_000_000) {
-            return String.format("%.2f KiB", numBytes.div(1_000.0))
+            return String.format("%.2f KB", numBytes.div(1_000.0))
         } else {
-            return String.format("%.2f MiB", numBytes.div(1_000_000.0))
+            return String.format("%.2f MB", numBytes.div(1_000_000.0))
         }
     }
 
@@ -238,9 +276,9 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         if (bytesPerSecond < 1_000) {
             return String.format("%.2f B/s", bytesPerSecond)
         } else if (bytesPerSecond < 1_000_000) {
-            return String.format("%.2f KiB/s", bytesPerSecond / 1_000)
+            return String.format("%.2f KB/s", bytesPerSecond / 1_000)
         } else {
-            return String.format("%.2f MiB/s", bytesPerSecond / 1_000_000)
+            return String.format("%.2f MB/s", bytesPerSecond / 1_000_000)
         }
     }
 
