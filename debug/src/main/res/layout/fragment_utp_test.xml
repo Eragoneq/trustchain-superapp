@@ -60,8 +60,8 @@
                 android:layout_weight="1"
                 android:ems="10"
                 android:enabled="false"
-                android:inputType="text"
-                android:hint="Random data size (in Mb)"/>
+                android:hint="Random data size (in MB)"
+                android:inputType="text"/>
         </LinearLayout>
 
     </LinearLayout>
