@@ -81,6 +81,10 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                 NamedResource("votes13.csv", R.raw.votes13),
             )
 
+        val files = ArrayAdapter(view.context, android.R.layout.simple_spinner_item, namedFiles)
+        binding.DAOSpinner.adapter = files
+        binding.DAOSpinner.setSelection(0)
+
         binding.DAOToggleSwitch.setOnClickListener {
             if (binding.DAOToggleSwitch.isChecked) {
                 // Use random data
@@ -90,12 +94,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                 // Use CSV files
                 binding.DAOSpinner.isEnabled = true
                 binding.editDAOText.isEnabled = false
-
-                // Hardcoded files
-                val files =
-                    ArrayAdapter(it.context, android.R.layout.simple_spinner_item, namedFiles)
-                binding.DAOSpinner.adapter = files
-                binding.DAOSpinner.setSelection(0)
             }
         }
 
@@ -253,7 +251,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
     private fun sendTestData(peer: Peer) {
         if (binding.DAOToggleSwitch.isChecked) {
-            val size = binding.editDAOText.text.toString().toInt()
+            val size = binding.editDAOText.text.toString().toInt() * 1_000_000
             getUtpCommunity().utpHelper.sendRandomData(peer, size)
             return
         }
@@ -275,7 +273,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     ) {
         val bytes: ByteArray
         if (binding.DAOToggleSwitch.isChecked) {
-            val size = binding.editDAOText.text.toString().toInt()
+            val size = binding.editDAOText.text.toString().toInt() * 1_000_000
             bytes = UtpHelper.generateRandomDataBuffer(size)
         } else {
             val item = binding.DAOSpinner.selectedItem as NamedResource?
