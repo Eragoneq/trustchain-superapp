@@ -11,26 +11,18 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.core.view.children
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import net.utp4j.data.UtpPacket
 import net.utp4j.data.UtpPacketUtils
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
-import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload
-import nl.tudelft.ipv8.messaging.payload.TransferRequestPayload.TransferType
 import nl.tudelft.ipv8.messaging.utp.UtpCommunity
 import nl.tudelft.ipv8.messaging.utp.UtpHelper
 import nl.tudelft.ipv8.messaging.utp.UtpHelper.NamedResource
-import nl.tudelft.ipv8.messaging.utp.UtpIPv8Endpoint.Companion.BUFFER_SIZE
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpTestBinding
 import nl.tudelft.trustchain.debug.databinding.PeerComponentBinding
 import java.net.InetAddress
-import java.nio.ByteBuffer
-import java.security.MessageDigest
-import kotlin.random.Random
 
 class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     private val binding by viewBinding(FragmentUtpTestBinding::bind)
@@ -225,12 +217,12 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun formatDataTransferredMessage(numBytes: Int): String {
-        if (numBytes < 1_000) {
-            return String.format("%d B", numBytes)
+        return if (numBytes < 1_000) {
+            String.format("%d B", numBytes)
         } else if (numBytes < 1_000_000) {
-            return String.format("%.2f KiB", numBytes.div(1_000.0))
+            String.format("%.2f KiB", numBytes.div(1_000.0))
         } else {
-            return String.format("%.2f MiB", numBytes.div(1_000_000.0))
+            String.format("%.2f MiB", numBytes.div(1_000_000.0))
         }
     }
 
@@ -249,9 +241,12 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
     }
 
+    /**
+     * Send test data (set file or random data) to the given peer.
+     */
     private fun sendTestData(peer: Peer) {
         if (binding.DAOToggleSwitch.isChecked) {
-            val size = binding.editDAOText.text.toString().toInt() * 1_000_000
+            val size = getRandomDataSize()
             getUtpCommunity().utpHelper.sendRandomData(peer, size)
             return
         }
@@ -267,13 +262,17 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         getUtpCommunity().utpHelper.sendFileData(peer, item1, bytes)
     }
 
+    /**
+     * Send test data (set file or random data) to the given IP and port.
+     * Used only for testing purposes on localhost, ignores the TransferRequestPayload handshake.
+     */
     private fun sendTestData(
         ip: String,
         port: Int
     ) {
         val bytes: ByteArray
         if (binding.DAOToggleSwitch.isChecked) {
-            val size = binding.editDAOText.text.toString().toInt() * 1_000_000
+            val size = getRandomDataSize()
             bytes = UtpHelper.generateRandomDataBuffer(size)
         } else {
             val item = binding.DAOSpinner.selectedItem as NamedResource?
@@ -286,6 +285,20 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             csv.close()
         }
         endpoint?.sendUtp(IPv4Address(ip, port), bytes)
+    }
+
+    /**
+     * Get the size of the random data to be sent in bytes.
+     * The size is determined by the value in the edit text field and clamped to the range [1, 50] MB.
+     * If the value is invalid, the default size is 2 MiB.
+     */
+    private fun getRandomDataSize(): Int {
+        return try {
+            (binding.editDAOText.text.toString().toInt().coerceIn(1..50) * 1_000_000)
+        } catch (e: NumberFormatException) {
+            Log.e(LOG_TAG, "Invalid number format")
+            2_048
+        }
     }
 
     private fun getPeers() {
@@ -330,7 +343,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     companion object {
-        const val MIN_PORT = 1024
         const val LOG_TAG = "uTP Debug"
     }
 
