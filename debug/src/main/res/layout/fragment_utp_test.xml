@@ -26,7 +26,7 @@
                 android:layout_marginTop="32dp"
                 android:text="File/Random"
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-                android:textStyle="bold" />
+                android:textStyle="bold"/>
 
             <Switch
                 android:id="@+id/DAOToggleSwitch"
@@ -36,7 +36,7 @@
                 android:layout_marginLeft="35dp"
                 android:scaleX="2"
                 android:scaleY="2"
-                android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+                android:textAppearance="@style/TextAppearance.AppCompat.Large"/>
         </LinearLayout>
 
         <LinearLayout
@@ -61,7 +61,7 @@
                 android:ems="10"
                 android:enabled="false"
                 android:hint="Random data size (in MB)"
-                android:inputType="text" />
+                android:inputType="text"/>
         </LinearLayout>
 
     </LinearLayout>
@@ -72,15 +72,6 @@
         android:layout_margin="8dp"
         android:orientation="horizontal">
 
-        <!--        <Button-->
-        <!--            android:id="@+id/receiveTestPacket"-->
-        <!--            android:layout_width="100dp"-->
-        <!--            android:layout_height="60dp"-->
-        <!--            android:layout_marginStart="8dp"-->
-        <!--            android:layout_weight="1"-->
-        <!--            android:text="Receive"-->
-        <!--            android:textSize="20sp" />-->
-
         <Button
             android:id="@+id/sendTestPacket"
             android:layout_width="100dp"
@@ -89,8 +80,18 @@
             android:layout_marginTop="0dp"
             android:layout_weight="1"
             android:text="Send to Localhost"
-            android:textSize="20sp" />
+            android:textSize="20sp"/>
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/sendExplanation"
+        android:layout_width="match_parent"
+        android:layout_height="20dp"
+        android:gravity="center_horizontal"
+        android:layout_marginTop="-5dp"
+        android:text="Press on any peer to send to them."
+        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+        android:textStyle="italic"/>
 
     <ScrollView
         android:layout_width="match_parent"
