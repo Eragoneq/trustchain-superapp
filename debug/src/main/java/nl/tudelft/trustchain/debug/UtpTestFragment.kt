@@ -21,6 +21,7 @@ import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpTestBinding
 import nl.tudelft.trustchain.debug.databinding.PeerComponentBinding
+import java.net.DatagramPacket
 import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.security.MessageDigest
@@ -122,26 +123,41 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             }
         }
 
-        endpoint?.utpIPv8Endpoint?.rawPacketListeners?.add { packet ->
+         val onPacket = { packet: DatagramPacket, outgoing: Boolean ->
             val utpPacket = UtpPacketUtils.extractUtpPacket(packet)
 
-            println("---- seq, ack, id: " + utpPacket.sequenceNumber + " " + utpPacket.ackNumber + " " + utpPacket.connectionId)
+             // listen for final packet being sent
+             // this will tell us what the final ack of the connection will be
+             if (!outgoing && utpPacket.windowSize == 0) {
+                 println("sending final pkt seq " + utpPacket.sequenceNumber + " of connection " + (utpPacket.connectionId.toInt()-1))
+                connectionInfoMap[(utpPacket.connectionId-1).toShort()]?.finalPacket = utpPacket.sequenceNumber.toInt()
+             } else {
+                 println("---- seq, ack, id: " + utpPacket.sequenceNumber + " " + utpPacket.ackNumber + " " + utpPacket.connectionId)
 
-            if (UtpPacketUtils.isSynPkt(utpPacket)) {
-                startConnectionLog((utpPacket.connectionId + 1).toShort(), packet.address)
-            }
-            else if (utpPacket.ackNumber == 1.toShort()) {
-                startConnectionLog((utpPacket.connectionId).toShort(), packet.address)
-            }
-            else if (utpPacket.windowSize == 0) {
-                finalizeConnectionLog(utpPacket.connectionId, packet.address)
-            } else if (utpPacket.sequenceNumber > 0){
-                //
-                logDataPacket(utpPacket, packet.address)
-            } else if (utpPacket.ackNumber > 0) {
-                logAckPacket(utpPacket, packet.address)
-            }
+                 if (UtpPacketUtils.isSynPkt(utpPacket)) {
+                     startConnectionLog((utpPacket.connectionId + 1).toShort(), packet.address)
+                 }
+                 else if (utpPacket.ackNumber == 1.toShort()) {
+                     startConnectionLog((utpPacket.connectionId).toShort(), packet.address)
+                 }
+                 else if (utpPacket.windowSize == 0) {
+                     finalizeConnectionLog(utpPacket.connectionId, packet.address)
+                 } else if (utpPacket.sequenceNumber > 0){
+                     //
+                     logDataPacket(utpPacket, packet.address)
+                 } else if (utpPacket.ackNumber > 0) {
+                     logAckPacket(utpPacket, packet.address)
+
+                     if (utpPacket.ackNumber.toInt() == connectionInfoMap[utpPacket.connectionId]!!.finalPacket) {
+                         println("tried to fin log")
+                         finalizeConnectionLog(utpPacket.connectionId, packet.address)
+                     }
+                 }
+             }
         }
+
+        endpoint?.utpIPv8Endpoint?.rawPacketListeners?.add(onPacket)
+        endpoint?.utpIPv8Endpoint?.clientSocket?.rawPacketListeners?.add(onPacket)
     }
 
     private fun startConnectionLog(
@@ -365,5 +381,5 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         const val LOG_TAG = "uTP Debug"
     }
 
-    private data class ConnectionInfo(val source: InetAddress, val connectionStartTimestamp: Long, var dataTransferred: Int)
+    private data class ConnectionInfo(val source: InetAddress, val connectionStartTimestamp: Long, var dataTransferred: Int, var finalPacket: Int = -1)
 }
