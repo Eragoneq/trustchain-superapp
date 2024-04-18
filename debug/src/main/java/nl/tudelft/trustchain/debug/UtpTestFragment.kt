@@ -11,6 +11,8 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.core.view.children
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import net.utp4j.data.UtpPacket
 import net.utp4j.data.UtpPacketUtils
 import nl.tudelft.ipv8.IPv4Address
@@ -23,6 +25,8 @@ import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpTestBinding
 import nl.tudelft.trustchain.debug.databinding.PeerComponentBinding
 import java.net.InetAddress
+import java.time.Duration
+import java.util.Date
 
 class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     private val binding by viewBinding(FragmentUtpTestBinding::bind)
@@ -31,7 +35,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
     private val endpoint = getUtpCommunity().endpoint.udpEndpoint
 
-    private val peerStatus: MutableMap<Peer, Status> = mutableMapOf()
     private val viewToPeerMap: MutableMap<View, Peer> = mutableMapOf()
     private val logMap: MutableMap<Short, TextView> = HashMap()
     private val connectionInfoMap: MutableMap<Short, ConnectionInfo> = HashMap()
@@ -42,7 +45,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        // create list of peers
         getPeers()
 
         for (peer in peers) {
@@ -50,7 +52,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             val layoutInflater: LayoutInflater =
                 this.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
             val v: View = layoutInflater.inflate(R.layout.peer_component, null)
-            peerStatus[peer] = Status.IDLE
             val peerComponentBinding = PeerComponentBinding.bind(v)
             peerComponentBinding.peerIP.setText(peer.address.ip)
             peerComponentBinding.peerPublicKey.setText(peer.publicKey.toString().substring(0, 6))
@@ -105,9 +106,14 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                 lifecycleScope.launchWhenCreated {
                     sendTestData(peer)
                 }
-                peerStatus[peer] = Status.SENT
                 Log.d(LOG_TAG, "sending data to peer $address")
-                updatePeerStatus(peer)
+            }
+        }
+
+        lifecycleScope.launchWhenStarted {
+            while (isActive) {
+                updatePeersStatus()
+                delay(5000)
             }
         }
 
@@ -304,12 +310,12 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun getPeers() {
-        Log.d("uTP Client", "Start peer discovery!")
+        Log.d(LOG_TAG, "Start peer discovery!")
         lifecycleScope.launchWhenCreated {
             val freshPeers = getUtpCommunity().getPeers()
             peers.clear()
             peers.addAll(freshPeers)
-            Log.d("uTP Client", "Found ${peers.size} peers! ($peers)")
+            Log.d(LOG_TAG, "Found ${peers.size} peers! ($peers)")
         }
     }
 
@@ -322,9 +328,23 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         return inflater.inflate(R.layout.fragment_utp_test, container, false)
     }
 
-    private fun updatePeerStatus(peer: Peer?) {
-        val statusIndicator = findStatusIndicator(peer)
-        statusIndicator.setBackgroundResource(R.drawable.indicator_orange);
+    private fun updatePeersStatus() {
+        for (peer in peers) {
+            val statusIndicator = findStatusIndicator(peer)
+            val lastDate = getUtpCommunity().lastHeartbeat[peer.mid]
+            if (lastDate == null) {
+                statusIndicator.setBackgroundResource(R.drawable.indicator_gray)
+            } else {
+                val diff = Duration.between(Date().toInstant(), lastDate.toInstant()).abs().seconds
+//                Log.d(LOG_TAG, "Time diff: $diff")
+                when (diff) {
+                    in 0L .. 30L -> statusIndicator.setBackgroundResource(R.drawable.indicator_green)
+                    in 30L .. 60L -> statusIndicator.setBackgroundResource(R.drawable.indicator_yellow)
+                    in 60L .. 120L -> statusIndicator.setBackgroundResource(R.drawable.indicator_orange)
+                    else -> statusIndicator.setBackgroundResource(R.drawable.indicator_red)
+                }
+            }
+        }
         // Change status indicator depending on peer status.
         // statusIndicator.setBackgroundResource(R.drawable.indicator_yellow)
     }
@@ -349,14 +369,5 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         const val LOG_TAG = "uTP Debug"
     }
 
-    private data class ConnectionInfo(
-        val source: InetAddress,
-        val connectionStartTimestamp: Long,
-        var dataTransferred: Int
-    )
-
-}
-
-enum class Status {
-    IDLE, SENT, RECEIVED
+    private data class ConnectionInfo(val source: InetAddress, val connectionStartTimestamp: Long, var dataTransferred: Int)
 }
