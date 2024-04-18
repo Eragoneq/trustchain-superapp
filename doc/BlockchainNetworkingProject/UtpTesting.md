@@ -11,10 +11,11 @@ A scrollable list of available peers is also present. By clicking on a peer, the
 </div>
 
 Colour specifications:
-- Sent without ack: Yellow
-- Sent with ack: Green
-- More than a minute without communication: Yellow
-- More than 3 minutes without communication: Red
+- Default: Gray
+- Sent heartbeat received within 30s: Green
+- Sent heartbeat received between 30-60s ago: Yellow
+- Sent heartbeat received between 60-120s ago: Orange
+- Sent heartbeat received more than 120s ago: Red
 
 ## Implementation and Functionality
 <!-- TODO: add explanation of how it works --> 
