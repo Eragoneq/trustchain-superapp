@@ -16,16 +16,14 @@ import net.utp4j.data.UtpPacketUtils
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.messaging.utp.UtpCommunity
-import nl.tudelft.ipv8.messaging.utp.UtpIPv8Endpoint.Companion.BUFFER_SIZE
+import nl.tudelft.ipv8.messaging.utp.UtpHelper
+import nl.tudelft.ipv8.messaging.utp.UtpHelper.NamedResource
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpTestBinding
 import nl.tudelft.trustchain.debug.databinding.PeerComponentBinding
 import java.net.DatagramPacket
 import java.net.InetAddress
-import java.nio.ByteBuffer
-import java.security.MessageDigest
-import kotlin.random.Random
 
 class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     private val binding by viewBinding(FragmentUtpTestBinding::bind)
@@ -34,7 +32,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
     private val endpoint = getUtpCommunity().endpoint.udpEndpoint
 
-    private var ipv8Mode: Boolean = false
     private val viewToPeerMap: MutableMap<View, Peer> = mutableMapOf()
     private val logMap: MutableMap<Short, TextView> = HashMap()
     private val connectionInfoMap: MutableMap<Short, ConnectionInfo> = HashMap()
@@ -50,7 +47,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
         for (peer in peers) {
             Log.d(LOG_TAG, "Adding peer " + peer.toString())
-            val layoutInflater: LayoutInflater = this.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+            val layoutInflater: LayoutInflater =
+                this.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
             val v: View = layoutInflater.inflate(R.layout.peer_component, null)
 
             val peerComponentBinding = PeerComponentBinding.bind(v)
@@ -72,34 +70,23 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         // Named resources
         val namedFiles =
             listOf(
-                object {
-                    val name: String = "votes3.csv"
-                    val id: Int = R.raw.votes3
-
-                    override fun toString(): String = name
-                },
-                object {
-                    val name: String = "votes13.csv"
-                    val id: Int = R.raw.votes3
-
-                    override fun toString(): String = name
-                }
+                NamedResource("votes3.csv", R.raw.votes3),
+                NamedResource("votes13.csv", R.raw.votes13),
             )
+
+        val files = ArrayAdapter(view.context, android.R.layout.simple_spinner_item, namedFiles)
+        binding.DAOSpinner.adapter = files
+        binding.DAOSpinner.setSelection(0)
 
         binding.DAOToggleSwitch.setOnClickListener {
             if (binding.DAOToggleSwitch.isChecked) {
-                // Use CSV files
-                binding.DAOSpinner.isEnabled = true
-                binding.editDAOText.isEnabled = false
-
-                // Hardcoded files
-                val files = ArrayAdapter(it.context, android.R.layout.simple_spinner_item, namedFiles)
-                binding.DAOSpinner.adapter = files
-                binding.DAOSpinner.setSelection(0)
-            } else {
                 // Use random data
                 binding.DAOSpinner.isEnabled = false
                 binding.editDAOText.isEnabled = true
+            } else {
+                // Use CSV files
+                binding.DAOSpinner.isEnabled = true
+                binding.editDAOText.isEnabled = false
             }
         }
 
@@ -314,8 +301,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun formatDataTransferredMessage(numBytes: Int): String {
-        if (numBytes < 1_000) {
-            return String.format("%d B", numBytes)
+        return if (numBytes < 1_000) {
+            String.format("%d B", numBytes)
         } else if (numBytes < 1_000_000) {
             return String.format("%.2f KB", numBytes.div(1_000.0))
         } else {
@@ -329,8 +316,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     ): String {
         val bytesPerSecond = numBytes.div(time)
 
-        if (bytesPerSecond < 1_000) {
-            return String.format("%.2f B/s", bytesPerSecond)
+        return if (bytesPerSecond < 1_000) {
+            String.format("%.2f B/s", bytesPerSecond)
         } else if (bytesPerSecond < 1_000_000) {
             return String.format("%.2f KB/s", bytesPerSecond / 1_000)
         } else {
@@ -338,26 +325,64 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
     }
 
+    /**
+     * Send test data (set file or random data) to the given peer.
+     */
     private fun sendTestData(peer: Peer) {
-        sendTestData(peer.address.ip, peer.address.port)
+        if (binding.DAOToggleSwitch.isChecked) {
+            val size = getRandomDataSize()
+            getUtpCommunity().utpHelper.sendRandomData(peer, size)
+            return
+        }
+        val item = binding.DAOSpinner.selectedItem as NamedResource?
+        if (item == null) {
+            Log.e(LOG_TAG, "No file selected")
+            return
+        }
+        val csv = resources.openRawResource(item.id)
+        val bytes = csv.readBytes()
+        csv.close()
+        val item1 = item.copy(size = bytes.size)
+        getUtpCommunity().utpHelper.sendFileData(peer, item1, bytes)
     }
 
+    /**
+     * Send test data (set file or random data) to the given IP and port.
+     * Used only for testing purposes on localhost, ignores the TransferRequestPayload handshake.
+     */
     private fun sendTestData(
         ip: String,
         port: Int
     ) {
-        val csv3 = resources.openRawResource(R.raw.votes3)
-        val csv13 = resources.openRawResource(R.raw.votes13)
+        val bytes: ByteArray
+        if (binding.DAOToggleSwitch.isChecked) {
+            val size = getRandomDataSize()
+            bytes = UtpHelper.generateRandomDataBuffer(size)
+        } else {
+            val item = binding.DAOSpinner.selectedItem as NamedResource?
+            if (item == null) {
+                Log.e(LOG_TAG, "No file selected")
+                return
+            }
+            val csv = resources.openRawResource(item.id)
+            bytes = csv.readBytes()
+            csv.close()
+        }
+        endpoint?.sendUtp(IPv4Address(ip, port), bytes)
+    }
 
-//            // 100 MB of random bytes + hash
-//            val buffer = generateRandomDataBuffer()
-//            // Send CSV file
-//            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
-//            buffer.put(csv3.readBytes())
-        Log.d("uTP Client", "Sending data to $ip:$port")
-        endpoint?.sendUtp(IPv4Address(ip, port), csv3.readBytes())
-        csv3.close()
-        csv13.close()
+    /**
+     * Get the size of the random data to be sent in bytes.
+     * The size is determined by the value in the edit text field and clamped to the range [1, 50] MB.
+     * If the value is invalid, the default size is 2 MiB.
+     */
+    private fun getRandomDataSize(): Int {
+        return try {
+            (binding.editDAOText.text.toString().toInt().coerceIn(1..50) * 1_000_000)
+        } catch (e: NumberFormatException) {
+            Log.e(LOG_TAG, "Invalid number format")
+            2_048
+        }
     }
 
     private fun getPeers() {
@@ -387,7 +412,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
 
     private fun findStatusIndicator(peer: Peer?): View {
         // Find the status indicator in the UI for this peer
-        val peerLayout = viewToPeerMap.entries.find { it.value == peer }?.key ?: error("Layout for peer $peer not found")
+        val peerLayout = viewToPeerMap.entries.find { it.value == peer }?.key
+            ?: error("Layout for peer $peer not found")
         val statusIndicator =
             peerLayout.findViewById<View>(
                 R.id.peerStatusIndicator
@@ -395,31 +421,15 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         return statusIndicator
     }
 
-    private fun generateRandomDataBuffer(): ByteBuffer {
-        Log.d("uTP Client", "Start preparing buffer!")
-        val rngByteArray = ByteArray(BUFFER_SIZE + 32)
-        Random.nextBytes(rngByteArray, 0, BUFFER_SIZE)
-        Log.d("uTP Client", "Fill random bytes!")
-        // Create hash to check correctness
-        Log.d("uTP Client", "Create hash!")
-        val buffer = ByteBuffer.wrap(rngByteArray)
-        // Create hash to check correctness
-        Log.d("uTP Client", "Create hash!")
-        val hash = MessageDigest.getInstance("SHA-256").digest(rngByteArray)
-        buffer.position(BUFFER_SIZE)
-        buffer.put(hash)
-        Log.d("uTP Client", "Generated random data with hash $hash")
-        return buffer
-    }
-
     private fun getUtpCommunity(): UtpCommunity {
-        return getIpv8().getOverlay() ?: throw IllegalStateException("UtpCommunity is not configured")
+        return getIpv8().getOverlay()
+            ?: throw IllegalStateException("UtpCommunity is not configured")
     }
 
     companion object {
-        const val MIN_PORT = 1024
         const val LOG_TAG = "uTP Debug"
     }
 
     private data class ConnectionInfo(val source: InetAddress, val connectionStartTimestamp: Long, var dataTransferred: Int, val peer: String, var finalPacket: Int = -1)
+
 }
