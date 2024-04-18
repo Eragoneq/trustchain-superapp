@@ -122,12 +122,10 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
              if (!outgoing) {
                  registerPacket(utpPacket, (utpPacket.connectionId-1).toShort())
                  if (utpPacket.windowSize == 0) {
-                     println("sending final pkt seq " + utpPacket.sequenceNumber + " of connection " + (utpPacket.connectionId.toInt() - 1))
                      connectionInfoMap[(utpPacket.connectionId - 1).toShort()]?.finalPacket =
                          utpPacket.sequenceNumber.toInt()
                  }
              } else {
-//                 println("---- seq, ack, id: " + utpPacket.sequenceNumber + " " + utpPacket.ackNumber + " " + utpPacket.connectionId)
 
                  if (UtpPacketUtils.isSynPkt(utpPacket)) {
                      startConnectionLog((utpPacket.connectionId + 1).toShort(), packet.address, packet.port)
@@ -144,7 +142,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                      logAckPacket(utpPacket, packet.address)
 
                      if (utpPacket.ackNumber.toInt() == connectionInfoMap[utpPacket.connectionId]!!.finalPacket) {
-                         println("tried to fin log")
                          finalizeConnectionLog(utpPacket.connectionId, packet.address)
                      }
                  }
@@ -154,14 +151,11 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         endpoint?.utpIPv8Endpoint?.rawPacketListeners?.add(onPacket)
         endpoint?.utpIPv8Endpoint?.clientSocket?.rawPacketListeners?.add(onPacket)
 
-
-
-
         // update logs
         lifecycleScope.launchWhenCreated {
             while (isActive) {
                 for (connectionId in connectionInfoMap.keys) {
-                    var connectionInfo= connectionInfoMap[connectionId]
+                    val connectionInfo= connectionInfoMap[connectionId]
 
                     val logMessage = connectionInfo?.logMessage
                     activity?.runOnUiThread {
@@ -186,9 +180,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
 
         // get peer corresponding to source ip
-        println(source.toString().substring(1))
         val peer = getPeerIdFromIp(source.toString().substring(1), port)
-        println(peer)
 
         // store info on connection in map
         connectionInfoMap.put(
@@ -197,15 +189,18 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         )
 
         val logMessage = String.format("%s: Connecting... %d", peer, connectionId)
-
         // create new log section in fragment
         activity?.runOnUiThread {
-            val logView = TextView(this.context)
-            logView.text = logMessage
+            synchronized(logMap) {
+                if (!logMap.containsKey(connectionId)) {
+                    val logView = TextView(this.context)
+                    logView.text = logMessage
 
-            binding.connectionLogLayout.addView(logView)
+                    binding.connectionLogLayout.addView(logView)
+                    logMap.put(connectionId, logView)
+                }
+            }
 
-            logMap.put(connectionId, logView)
         }
     }
 
@@ -217,7 +212,6 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         // check if peer is self
         val myPeer = getUtpCommunity().myPeer
         val myLan = getUtpCommunity().myEstimatedLan
-        println(myLan.ip + " " + myLan.port)
         if (myLan.ip == ip && myLan.port == port) {
             return myPeer.publicKey.toString().substring(0, 6)
         }
