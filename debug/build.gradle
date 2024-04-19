@@ -74,7 +74,7 @@ dependencies {
     }
 
     // uTP protocol stuff
-    api 'com.github.PieterCarton:utp4j:master-SNAPSHOT'
+    api 'com.github.PieterCarton:utp4j:v0.0.2'
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
