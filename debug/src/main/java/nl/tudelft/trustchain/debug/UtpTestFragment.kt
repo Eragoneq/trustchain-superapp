@@ -26,6 +26,8 @@ import nl.tudelft.trustchain.debug.databinding.FragmentUtpTestBinding
 import nl.tudelft.trustchain.debug.databinding.PeerComponentBinding
 import java.net.DatagramPacket
 import java.net.InetAddress
+import java.time.Duration
+import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListSet
 
@@ -46,15 +48,14 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        // create list of peers
         getPeers()
 
+        // Add peers to the UI
         for (peer in peers) {
             Log.d(LOG_TAG, "Adding peer " + peer.toString())
             val layoutInflater: LayoutInflater =
                 this.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
             val v: View = layoutInflater.inflate(R.layout.peer_component, null)
-
             val peerComponentBinding = PeerComponentBinding.bind(v)
             peerComponentBinding.peerIP.setText(peer.address.ip)
             peerComponentBinding.peerPublicKey.setText(peer.publicKey.toString().substring(0, 6))
@@ -78,10 +79,12 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                 NamedResource("votes13.csv", R.raw.votes13),
             )
 
+        // Spinner for selecting the file
         val files = ArrayAdapter(view.context, android.R.layout.simple_spinner_item, namedFiles)
         binding.DAOSpinner.adapter = files
         binding.DAOSpinner.setSelection(0)
 
+        // Toggle switch for selecting random data and file data
         binding.DAOToggleSwitch.setOnClickListener {
             if (binding.DAOToggleSwitch.isChecked) {
                 // Use random data
@@ -94,6 +97,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             }
         }
 
+        // Send data after clicking on the send button to localhost
         binding.sendTestPacket.setOnClickListener {
             val myWan = getUtpCommunity().myEstimatedLan
             lifecycleScope.launchWhenCreated {
@@ -110,12 +114,20 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
                     sendTestData(peer)
                 }
                 Log.d(LOG_TAG, "sending data to peer $address")
-                updatePeerStatus(peer)
             }
         }
 
-         val onPacket = { packet: DatagramPacket, incoming: Boolean ->
-             val utpPacket = UtpPacketUtils.extractUtpPacket(packet)
+        // Update peer status indicators
+        lifecycleScope.launchWhenStarted {
+            while (isActive) {
+                updatePeersStatus()
+                delay(5000)
+            }
+        }
+
+        // Listen for incoming packets
+        val onPacket = { packet: DatagramPacket, incoming: Boolean ->
+            val utpPacket = UtpPacketUtils.extractUtpPacket(packet)
 
              // listen for final packet being sent
              // this will tell us what the final ack of the connection will be
@@ -222,6 +234,9 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
     }
 
+    /**
+     * Start a new connection log for the given connection.
+     */
     private fun startConnectionLog(
         connectionId: Short,
         source: InetAddress,
@@ -247,7 +262,10 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         return logMap.containsKey(utpPacket.connectionId)
     }
 
-    private fun getPeerIdFromIp(ip: String, port: Int): String {
+    private fun getPeerIdFromIp(
+        ip: String,
+        port: Int
+    ): String {
         // check if peer is self
         val myPeer = getUtpCommunity().myPeer
         val myLan = getUtpCommunity().myEstimatedLan
@@ -256,16 +274,16 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
 
         // find peer
-        val peer = peers.filter { peer -> peer.address.ip == ip}.firstOrNull()
-
-        if (peer == null) {
-            return "unknown"
-        }
+        val peer = peers.firstOrNull { peer -> peer.address.ip == ip && peer.address.port == port }
+            ?: return "unknown"
 
         return peer.publicKey.toString().substring(0, 6)
     }
 
-    private fun registerPacket(utpPacket: UtpPacket, connectionId: Short) {
+    private fun registerPacket(
+        utpPacket: UtpPacket,
+        connectionId: Short
+    ) {
         synchronized(connectionInfoMap) {
             val connectionInfo = connectionInfoMap[connectionId]
             val packetNumber = maxOf(utpPacket.ackNumber, utpPacket.sequenceNumber)
@@ -308,11 +326,11 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             val connectionInfo = connectionInfoMap[connectionId]!!
 
             if (connectionInfo.status == ConnectionStatus.DONE) {
-                return
+                Log.e(LOG_TAG, "Connection $connectionId is already finished")return
             }
 
             connectionInfo.status = ConnectionStatus.DONE
-            connectionInfo.connectionEndTimestamp = SystemClock.uptimeMillis()
+                connectionInfo.connectionEndTimestamp = SystemClock.uptimeMillis()
         }
     }
 
@@ -402,12 +420,12 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun getPeers() {
-        Log.d("uTP Client", "Start peer discovery!")
+        Log.d(LOG_TAG, "Start peer discovery!")
         lifecycleScope.launchWhenCreated {
             val freshPeers = getUtpCommunity().getPeers()
             peers.clear()
             peers.addAll(freshPeers)
-            Log.d("uTP Client", "Found ${peers.size} peers! ($peers)")
+            Log.d(LOG_TAG, "Found ${peers.size} peers! ($peers)")
         }
     }
 
@@ -420,16 +438,32 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         return inflater.inflate(R.layout.fragment_utp_test, container, false)
     }
 
-    private fun updatePeerStatus(peer: Peer?) {
-        val statusIndicator = findStatusIndicator(peer)
+    private fun updatePeersStatus() {
+        for (peer in peers) {
+            val statusIndicator = findStatusIndicator(peer)
+            val lastDate = getUtpCommunity().lastHeartbeat[peer.mid]
+            if (lastDate == null) {
+                statusIndicator.setBackgroundResource(R.drawable.indicator_gray)
+            } else {
+                val diff = Duration.between(Date().toInstant(), lastDate.toInstant()).abs().seconds
+//                Log.d(LOG_TAG, "Time diff: $diff")
+                when (diff) {
+                    in 0L..30L -> statusIndicator.setBackgroundResource(R.drawable.indicator_green)
+                    in 30L..60L -> statusIndicator.setBackgroundResource(R.drawable.indicator_yellow)
+                    in 60L..120L -> statusIndicator.setBackgroundResource(R.drawable.indicator_orange)
+                    else -> statusIndicator.setBackgroundResource(R.drawable.indicator_red)
+                }
+            }
+        }
         // Change status indicator depending on peer status.
         // statusIndicator.setBackgroundResource(R.drawable.indicator_yellow)
     }
 
     private fun findStatusIndicator(peer: Peer?): View {
         // Find the status indicator in the UI for this peer
-        val peerLayout = viewToPeerMap.entries.find { it.value == peer }?.key
-            ?: error("Layout for peer $peer not found")
+        val peerLayout =
+            viewToPeerMap.entries.find { it.value == peer }?.key
+                ?: error("Layout for peer $peer not found")
         val statusIndicator =
             peerLayout.findViewById<View>(
                 R.id.peerStatusIndicator
@@ -453,13 +487,12 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     private data class ConnectionInfo(val source: InetAddress,
                                       val connectionStartTimestamp: Long,
                                       val sending: Boolean = false,
-                                      val peer: String,
-                                      var status: ConnectionStatus = ConnectionStatus.CONNECTING,
+        val peer: String,
+        var status: ConnectionStatus = ConnectionStatus.CONNECTING,
                                       var dataTransferred: Int = 0,
                                       var latestPacket: Short = 0,
                                       var finalPacket: Int = -1,
                                       val receivedPackets: MutableSet<Short> = ConcurrentSkipListSet(),
                                       var connectionEndTimestamp: Long = -1,
     )
-
 }
