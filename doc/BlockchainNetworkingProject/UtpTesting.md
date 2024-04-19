@@ -53,3 +53,13 @@ There still exist some general issues that would have to be tackled. They includ
     - Log information is based on the listeners of raw packets and sometimes it may fail due to concurrency problems or similar stuff.
 
 In addition to that, there are some TODOs left in the code, which have not been addressed, such as in UtpTestFragment.kt or in the other documentation files. Where they are present there is a existing working solution or temporary workaround, but the TODO is still there hinting at how the problem can be solved more efficiently.
+
+# See also
+
+| Name | Link |
+| :-: | :-: |
+|  Main project issue   |  https://github.com/Tribler/tribler/issues/7911  |
+| Main app description | https://github.com/Eragoneq/trustchain-superapp/blob/master/doc/BlockchainNetworkingProject/UtpTesting.md |
+| Benchmarking done over 10 weeks | https://github.com/Eragoneq/trustchain-superapp/blob/master/doc/BlockchainNetworkingProject/Benchmarking.md |
+| utp4j changes and benchmarks | https://github.com/PieterCarton/utp4j/blob/master/CHANGES.md |
+| kotlin-ipv8 changes | https://github.com/Eragoneq/kotlin-ipv8/blob/master/doc/UtpBinaryTransfer.md |
