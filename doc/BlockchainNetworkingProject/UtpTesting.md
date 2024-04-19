@@ -50,6 +50,6 @@ There still exist some general issues that would have to be tackled. They includ
 - Repeatedly (spam) sending can cause the IPv8 layer to crash.
     - We are not sure if that's the bug in our code or built-in protection against DDOS.
 - Connection logs may break with some concurrent file sending attempts.
-    - Every connection attempt (also denied) is logged as its own entry, as such it can spam the whole console.
+    - Log information is based on the listeners of raw packets and sometimes it may fail due to concurrency problems or similar stuff.
 
-In addition to that, there are some TODOs left in the code, which have not been addressed, such as in UtpTestFragment.kt. Where they are present there is a existing working solution or temporary workaround, but the TODO is still there hinting at how the problem can be solved more efficiently.
+In addition to that, there are some TODOs left in the code, which have not been addressed, such as in UtpTestFragment.kt or in the other documentation files. Where they are present there is a existing working solution or temporary workaround, but the TODO is still there hinting at how the problem can be solved more efficiently.

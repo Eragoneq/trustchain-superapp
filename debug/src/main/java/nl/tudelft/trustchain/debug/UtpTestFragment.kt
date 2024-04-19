@@ -224,7 +224,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun isConnectionKnown(utpPacket: UtpPacket): Boolean {
-        return connectionInfoMap.containsKey(utpPacket.connectionId)
+        return logMap.containsKey(utpPacket.connectionId)
     }
 
     private fun getPeerIdFromIp(
@@ -239,11 +239,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         }
 
         // find peer
-        val peer = peers.filter { peer -> peer.address.ip == ip }.firstOrNull()
-
-        if (peer == null) {
-            return "unknown"
-        }
+        val peer = peers.firstOrNull { peer -> peer.address.ip == ip && peer.address.port == port }
+            ?: return "unknown"
 
         return peer.publicKey.toString().substring(0, 6)
     }
@@ -290,7 +287,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         address: InetAddress
     ) {
         if (!isConnectionKnown(utpPacket)) {
-            println("connection " + utpPacket.connectionId + " is unknown, only have " + connectionInfoMap.keys)
+            Log.e(LOG_TAG, "connection " + utpPacket.connectionId + " is unknown, only have " + connectionInfoMap.keys)
             return
         }
 
@@ -320,14 +317,17 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         connectionId: Short,
         source: InetAddress
     ) {
+        Log.d(LOG_TAG, "Finalizing connection log for connection $connectionId")
         // if connection is not known, do nothing
         if (!logMap.containsKey(connectionId)) {
+            Log.e(LOG_TAG, "Connection $connectionId is unknown")
             return
         }
 
         val connectionInfo = connectionInfoMap[connectionId]!!
 
         if (connectionInfo.finished) {
+            Log.e(LOG_TAG, "Connection $connectionId is already finished")
             return
         }
         connectionInfo.finished = true
