@@ -114,35 +114,44 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
             }
         }
 
-         val onPacket = { packet: DatagramPacket, outgoing: Boolean ->
+         val onPacket = { packet: DatagramPacket, incoming: Boolean ->
              val utpPacket = UtpPacketUtils.extractUtpPacket(packet)
 
              // listen for final packet being sent
              // this will tell us what the final ack of the connection will be
-             if (!outgoing) {
+             if (!incoming) {
                  registerPacket(utpPacket, (utpPacket.connectionId-1).toShort())
                  if (utpPacket.windowSize == 0) {
-                     connectionInfoMap[(utpPacket.connectionId - 1).toShort()]?.finalPacket =
-                         utpPacket.sequenceNumber.toInt()
+                     println("captured last packet: ack " + utpPacket.sequenceNumber)
+                     val connectionInfo = connectionInfoMap[(utpPacket.connectionId - 1).toShort()]
+                     val finalAck = utpPacket.sequenceNumber.toInt()
+                     connectionInfo?.finalPacket =finalAck
+
+
+                     // if acknowledgement of last packet was already received, already finalize log
+                     if (connectionInfo != null && connectionInfo.receivedPackets.contains((finalAck-1).toShort())) {
+                         finalizeConnectionLog(utpPacket.connectionId)
+                     }
                  }
              } else {
 
                  if (UtpPacketUtils.isSynPkt(utpPacket)) {
-                     startConnectionLog((utpPacket.connectionId + 1).toShort(), packet.address, packet.port)
+                     startConnectionLog((utpPacket.connectionId + 1).toShort(), packet.address, packet.port, false)
                  }
                  else if (utpPacket.ackNumber == 1.toShort()) {
-                     startConnectionLog((utpPacket.connectionId).toShort(), packet.address, packet.port)
+                     startConnectionLog(utpPacket.connectionId, packet.address, packet.port, true)
                  }
                  else if (utpPacket.windowSize == 0) {
-                     finalizeConnectionLog(utpPacket.connectionId, packet.address)
+                     finalizeConnectionLog(utpPacket.connectionId)
                  } else if (utpPacket.sequenceNumber > 0){
                      //
-                     logDataPacket(utpPacket, packet.address)
+                     registerPacket(utpPacket, utpPacket.connectionId)
+                     logLatestPacket(utpPacket)
                  } else if (utpPacket.ackNumber > 0) {
-                     logAckPacket(utpPacket, packet.address)
-
-                     if (utpPacket.ackNumber.toInt() == connectionInfoMap[utpPacket.connectionId]!!.finalPacket) {
-                         finalizeConnectionLog(utpPacket.connectionId, packet.address)
+                     logLatestPacket(utpPacket)
+                     val finalPacket = connectionInfoMap[utpPacket.connectionId]!!.finalPacket
+                     if (finalPacket != -1 && utpPacket.ackNumber.toInt() >= finalPacket - 1) {
+                         finalizeConnectionLog(utpPacket.connectionId)
                      }
                  }
              }
@@ -154,17 +163,61 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         // update logs
         lifecycleScope.launchWhenCreated {
             while (isActive) {
-                for (connectionId in connectionInfoMap.keys) {
-                    val connectionInfo= connectionInfoMap[connectionId]
+                updateLogs()
+                delay(500)
+            }
+        }
+    }
 
-                    val logMessage = connectionInfo?.logMessage
-                    activity?.runOnUiThread {
-                        val logView = logMap.get(connectionId)
-                        logView?.text = logMessage
-                        logView?.postInvalidate()
+    private fun updateLogs() {
+        for (connectionId in connectionInfoMap.keys) {
+            val connectionInfo = connectionInfoMap[connectionId]!!
+
+            val logMessage = when (connectionInfo.status) {
+                ConnectionStatus.CONNECTING -> String.format("%s: Connecting... %d", connectionInfo.peer, connectionId)
+                ConnectionStatus.TRANSMITTING -> {
+                    if (connectionInfo.sending) {
+                        String.format(
+                            "%s: sending data, received acknowledgement number #%d",
+                            connectionInfo.peer,
+                            connectionInfo.latestPacket
+                        )
+                    } else {
+                        String.format(
+                            "%s: receiving data, received sequence number #%d",
+                            connectionInfo.peer,
+                            connectionInfo.latestPacket
+                        )
                     }
                 }
-                delay(500)
+                ConnectionStatus.DONE -> {
+                    val dataTransferred = formatDataTransferredMessage(connectionInfo.dataTransferred)
+                    val transferTime =
+                        (connectionInfo.connectionEndTimestamp - connectionInfo.connectionStartTimestamp).div(1000.0)
+                    val transferSpeed = formatTransferSpeed(connectionInfo.dataTransferred, transferTime)
+
+                    String.format(
+                        "%s: transfer completed: transferred %s in %.2f s (%s)",
+                        connectionInfo.peer,
+                        dataTransferred,
+                        transferTime,
+                        transferSpeed
+                    )
+                }
+            }
+
+            activity?.runOnUiThread {
+                if (!logMap.containsKey(connectionId)) {
+                    val logView = TextView(this.context)
+                    logView.text = logMessage
+
+                    binding.connectionLogLayout.addView(logView)
+                    logMap.put(connectionId, logView)
+                }
+
+                val logView = logMap.get(connectionId)
+                logView?.text = logMessage
+                logView?.postInvalidate()
             }
         }
     }
@@ -172,7 +225,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     private fun startConnectionLog(
         connectionId: Short,
         source: InetAddress,
-        port: Int
+        port: Int,
+        sending: Boolean
     ) {
         // do not recreate log for same connection
         if (logMap.containsKey(connectionId)) {
@@ -185,23 +239,8 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         // store info on connection in map
         connectionInfoMap.put(
             connectionId,
-            ConnectionInfo(source, SystemClock.uptimeMillis(), 0, peer = peer)
+            ConnectionInfo(source, SystemClock.uptimeMillis(), sending, peer = peer)
         )
-
-        val logMessage = String.format("%s: Connecting... %d", peer, connectionId)
-        // create new log section in fragment
-        activity?.runOnUiThread {
-            synchronized(logMap) {
-                if (!logMap.containsKey(connectionId)) {
-                    val logView = TextView(this.context)
-                    logView.text = logMessage
-
-                    binding.connectionLogLayout.addView(logView)
-                    logMap.put(connectionId, logView)
-                }
-            }
-
-        }
     }
 
     private fun isConnectionKnown(utpPacket: UtpPacket): Boolean {
@@ -227,91 +266,54 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun registerPacket(utpPacket: UtpPacket, connectionId: Short) {
-        var connectionInfo = connectionInfoMap[connectionId]
-        val packetNumber = maxOf(utpPacket.ackNumber, utpPacket.sequenceNumber)
+        synchronized(connectionInfoMap) {
+            val connectionInfo = connectionInfoMap[connectionId]
+            val packetNumber = maxOf(utpPacket.ackNumber, utpPacket.sequenceNumber)
 
-        connectionInfo?.let {
-            if (!it.receivedPackets.contains(packetNumber)) {
-                it.receivedPackets.add(packetNumber)
-                it.dataTransferred += utpPacket.payload.size
+            connectionInfo?.let {
+
+                if (!it.receivedPackets.contains(packetNumber)) {
+                    it.receivedPackets.add(packetNumber)
+                    it.dataTransferred += utpPacket.payload.size
+                }
+
             }
         }
-
-        // TODO: do not count retransmits towards total
     }
 
-    private fun logAckPacket(utpPacket: UtpPacket, address: InetAddress) {
-        if (!isConnectionKnown(utpPacket))
-            return
+    private fun logLatestPacket(utpPacket: UtpPacket) {
+        synchronized(connectionInfoMap) {
+            if (!isConnectionKnown(utpPacket))
+                return
 
-        val connectionInfo = connectionInfoMap[utpPacket.connectionId]
+            val connectionInfo = connectionInfoMap[utpPacket.connectionId]!!
+            val latestPacket = maxOf(utpPacket.ackNumber, utpPacket.sequenceNumber)
+            connectionInfo.latestPacket = maxOf(connectionInfo.latestPacket, latestPacket)
 
-        val logMessage = String.format(
-            "%s: sending data, received acknowledgement number #%d",
-            connectionInfo?.peer,
-            utpPacket.ackNumber
-        )
-
-        updateConnectionLog(utpPacket.connectionId, logMessage)
-    }
-
-    private fun logDataPacket(utpPacket: UtpPacket, address: InetAddress) {
-        if (!isConnectionKnown(utpPacket)) {
-            println("connection " + utpPacket.connectionId + " is unknown, only have " + connectionInfoMap.keys)
-            return
+            if (connectionInfo.status == ConnectionStatus.CONNECTING) {
+                connectionInfo.status = ConnectionStatus.TRANSMITTING
+            }
         }
-
-        registerPacket(utpPacket, utpPacket.connectionId)
-
-        val connectionInfo = connectionInfoMap[utpPacket.connectionId]
-
-        val logMessage = String.format(
-            "%s: receiving data, received sequence number #%d",
-            connectionInfo?.peer,
-            utpPacket.sequenceNumber
-        )
-
-        updateConnectionLog(utpPacket.connectionId, logMessage)
-    }
-
-    private fun updateConnectionLog(
-        connectionId: Short,
-        logMessage: String
-    ) {
-        val connectionInfo = connectionInfoMap.get(connectionId)
-        connectionInfo?.logMessage = logMessage
     }
 
     private fun finalizeConnectionLog(
-        connectionId: Short,
-        source: InetAddress
+        connectionId: Short
     ) {
-        // if connection is not know, do nothing
-        if (!logMap.containsKey(connectionId)) {
-            return
+        synchronized(connectionInfoMap) {
+            // if connection is not know, do nothing
+            if (!connectionInfoMap.containsKey(connectionId)) {
+                return
+            }
+
+            val connectionInfo = connectionInfoMap[connectionId]!!
+
+            if (connectionInfo.status == ConnectionStatus.DONE) {
+                return
+            }
+
+            connectionInfo.status = ConnectionStatus.DONE
+            connectionInfo.connectionEndTimestamp = SystemClock.uptimeMillis()
         }
-
-        val connectionInfo = connectionInfoMap[connectionId]!!
-
-        if (connectionInfo.finished) {
-            return
-        }
-        connectionInfo.finished = true
-
-        val dataTransferred = formatDataTransferredMessage(connectionInfo.dataTransferred)
-        val transferTime =
-            (SystemClock.uptimeMillis() - connectionInfo.connectionStartTimestamp).div(1000.0)
-        val transferSpeed = formatTransferSpeed(connectionInfo.dataTransferred, transferTime)
-
-        val logMessage = String.format(
-            "%s: transfer completed: transferred %s in %.2f s (%s)",
-            connectionInfo.peer,
-            dataTransferred,
-            transferTime,
-            transferSpeed
-        )
-
-        updateConnectionLog(connectionId, logMessage)
     }
 
     private fun formatDataTransferredMessage(numBytes: Int): String {
@@ -444,14 +446,20 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
         const val LOG_TAG = "uTP Debug"
     }
 
+    private enum class ConnectionStatus {
+        CONNECTING, TRANSMITTING, DONE
+    }
+
     private data class ConnectionInfo(val source: InetAddress,
                                       val connectionStartTimestamp: Long,
-                                      var dataTransferred: Int,
+                                      val sending: Boolean = false,
                                       val peer: String,
-                                      var logMessage: String = "",
+                                      var status: ConnectionStatus = ConnectionStatus.CONNECTING,
+                                      var dataTransferred: Int = 0,
+                                      var latestPacket: Short = 0,
                                       var finalPacket: Int = -1,
-                                      var finished: Boolean = false,
-                                      val receivedPackets: MutableSet<Short> = ConcurrentSkipListSet()
+                                      val receivedPackets: MutableSet<Short> = ConcurrentSkipListSet(),
+                                      var connectionEndTimestamp: Long = -1,
     )
 
 }
