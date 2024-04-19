@@ -226,7 +226,7 @@ class UtpTestFragment : BaseFragment(R.layout.fragment_utp_test) {
     }
 
     private fun isConnectionKnown(utpPacket: UtpPacket): Boolean {
-        return logMap.containsKey(utpPacket.connectionId)
+        return connectionInfoMap.containsKey(utpPacket.connectionId)
     }
 
     private fun getPeerIdFromIp(ip: String, port: Int): String {
