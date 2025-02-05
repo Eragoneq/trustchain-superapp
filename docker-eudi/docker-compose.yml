@@ -1,0 +1,40 @@
+version: '3.3'
+
+services:
+  verifier:
+    image: ghcr.io/eu-digital-identity-wallet/eudi-srv-web-verifier-endpoint-23220-4-kt:v0.1.9
+    container_name: verifier-backend
+    ports:
+      - "8080:8080"
+    environment:
+      VERIFIER_PUBLICURL: "https://192.168.178.172"
+      VERIFIER_RESPONSE_MODE: "DirectPost"
+      VERIFIER_CLIENTID: "EudiTest"
+      VERIFIER_CLIENTIDSCHEME: "pre-registered"
+      VERIFIER_JAR_SIGNING_ALGORITHM: "ES256"
+      VERIFIER_JAR_SIGNING_KEY: "LoadFromKeystore"
+      VERIFIER_JAR_SIGNING_KEY_KEYSTORE: "file:///certs/keystore.jks"
+      VERIFIER_JAR_SIGNING_KEY_KEYSTORE_TYPE: "PKCS12"
+      VERIFIER_JAR_SIGNING_KEY_KEYSTORE_PASSWORD: "qwerty"
+      VERIFIER_JAR_SIGNING_KEY_ALIAS: "verifierkey"
+      VERIFIER_JAR_SIGNING_KEY_PASSWORD: "qwerty"
+    volumes:
+      - ./keystore.jks:/certs/keystore.jks
+
+  verifier-ui:
+    image: ghcr.io/eu-digital-identity-wallet/eudi-web-verifier:latest
+    container_name: verifier-ui
+    ports:
+      - "4300:4300"
+    environment:
+      - DOMAIN_NAME=""
+      - HOST_API="https://192.168.178.172"
+
+  haproxy:
+    image: haproxy:2.7.2
+    container_name: haproxy
+    ports:
+      - "443:443"
+    volumes:
+      - ./haproxy.conf:/usr/local/etc/haproxy/haproxy.cfg
+      - ./haproxy.pem:/etc/ssl/certs/mysite.pem

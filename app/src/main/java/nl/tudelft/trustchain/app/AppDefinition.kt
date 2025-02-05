@@ -8,6 +8,7 @@ import nl.tudelft.trustchain.foc.MainActivityFOC
 import nl.tudelft.trustchain.common.R
 import nl.tudelft.trustchain.currencyii.CurrencyIIMainActivity
 import nl.tudelft.trustchain.debug.DebugActivity
+import nl.tudelft.trustchain.eudivoting.VotingActivity
 import nl.tudelft.trustchain.eurotoken.EuroTokenMainActivity
 import nl.tudelft.trustchain.valuetransfer.ValueTransferMainActivity
 import nl.tudelft.trustchain.peerai.PeerAIActivity
@@ -61,5 +62,11 @@ enum class AppDefinition(
         "PeerAI",
         R.color.green,
         PeerAIActivity::class.java
+    ),
+    EUDI_VOTING(
+        R.drawable.ic_blockchain_identity,
+        "EUDI Voting",
+        R.color.democracy_blue,
+        VotingActivity::class.java
     )
 }

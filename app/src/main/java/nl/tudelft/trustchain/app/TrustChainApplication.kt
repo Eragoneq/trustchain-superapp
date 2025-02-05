@@ -60,6 +60,7 @@ import nl.tudelft.trustchain.common.bitcoin.WalletService
 import nl.tudelft.trustchain.common.eurotoken.GatewayStore
 import nl.tudelft.trustchain.common.eurotoken.TransactionRepository
 import nl.tudelft.trustchain.currencyii.CoinCommunity
+import nl.tudelft.trustchain.eudivoting.community.EudiVoteCommunity
 import nl.tudelft.trustchain.eurotoken.community.EuroTokenCommunity
 import nl.tudelft.trustchain.eurotoken.db.TrustStore
 import nl.tudelft.trustchain.musicdao.core.dao.DaoCommunity
@@ -111,6 +112,7 @@ class TrustChainApplication : Application() {
                         createMusicCommunity(),
                         createIdentityCommunity(),
                         createFOCCommunity(),
+                        createEudiVoteCommunity(),
                     ),
                 walkerInterval = 5.0
             )
@@ -306,6 +308,14 @@ class TrustChainApplication : Application() {
         val randomWalk = RandomWalk.Factory()
         return OverlayConfiguration(
             Overlay.Factory(MarketCommunity::class.java),
+            listOf(randomWalk)
+        )
+    }
+
+    private fun createEudiVoteCommunity(): OverlayConfiguration<EudiVoteCommunity> {
+        val randomWalk = RandomWalk.Factory()
+        return OverlayConfiguration(
+            Overlay.Factory(EudiVoteCommunity::class.java),
             listOf(randomWalk)
         )
     }
