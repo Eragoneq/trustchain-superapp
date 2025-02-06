@@ -71,6 +71,7 @@ class BitcoinFragment :
         refresh()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onCreateOptionsMenu(
         menu: Menu,
         inflater: MenuInflater

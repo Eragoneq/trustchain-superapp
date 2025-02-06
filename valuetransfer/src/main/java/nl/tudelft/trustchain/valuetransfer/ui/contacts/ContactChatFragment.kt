@@ -948,6 +948,7 @@ class ContactChatFragment : VTFragment(R.layout.fragment_contacts_chat) {
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onCreateOptionsMenu(
         menu: Menu,
         inflater: MenuInflater
@@ -965,6 +966,7 @@ class ContactChatFragment : VTFragment(R.layout.fragment_contacts_chat) {
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
     }
 
+    @Deprecated("Deprecated in Java")
     @SuppressLint("RestrictedApi")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
@@ -1339,6 +1341,7 @@ class ContactChatFragment : VTFragment(R.layout.fragment_contacts_chat) {
         (previousFragment[0] as VTFragment).initView()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(
         requestCode: Int,
         resultCode: Int,
@@ -1486,6 +1489,7 @@ class ContactChatFragment : VTFragment(R.layout.fragment_contacts_chat) {
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,

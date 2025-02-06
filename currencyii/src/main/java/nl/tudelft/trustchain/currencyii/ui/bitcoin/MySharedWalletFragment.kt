@@ -45,6 +45,7 @@ class MySharedWalletFragment : BaseFragment(R.layout.fragment_my_shared_wallets)
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         @Suppress("DEPRECATION")
         super.onActivityCreated(savedInstanceState)

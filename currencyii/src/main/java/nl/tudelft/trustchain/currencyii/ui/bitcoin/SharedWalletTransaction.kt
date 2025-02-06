@@ -62,6 +62,7 @@ class SharedWalletTransaction : BaseFragment(R.layout.fragment_shared_wallet_tra
         _binding = null
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         @Suppress("DEPRECATION")
         super.onActivityCreated(savedInstanceState)

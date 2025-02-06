@@ -30,6 +30,7 @@ class IdentityAttestationConfirmDialog(
     private val idFormat: String,
     private val parentActivity: ValueTransferMainActivity
 ) : BlockingDialogFragment<String>() {
+    @Deprecated("Deprecated in Java")
     override fun onCreateDialog(savedInstanceState: Bundle?): BottomSheetDialog {
         @Suppress("DEPRECATION")
         return activity?.let {

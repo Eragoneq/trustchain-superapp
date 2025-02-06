@@ -168,6 +168,7 @@ class QRScanController : VTFragment() {
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(
         requestCode: Int,
         resultCode: Int,

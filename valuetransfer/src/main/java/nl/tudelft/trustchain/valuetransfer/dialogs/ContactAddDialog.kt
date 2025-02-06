@@ -189,6 +189,7 @@ class ContactAddDialog(
             ?: throw IllegalStateException(resources.getString(R.string.text_activity_not_null_requirement))
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(
         requestCode: Int,
         resultCode: Int,

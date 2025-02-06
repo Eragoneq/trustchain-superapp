@@ -15,6 +15,7 @@ class CurrencyIIMainActivity : BaseActivity() {
         AppBarConfiguration(topLevelDestinationIds)
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         val currentFragment = findNavController(R.id.navHostFragment).currentDestination
         val currentDestinationId = currentFragment?.id

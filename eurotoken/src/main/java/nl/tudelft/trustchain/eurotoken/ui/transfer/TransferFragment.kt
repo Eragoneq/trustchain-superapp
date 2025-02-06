@@ -182,6 +182,7 @@ class TransferFragment : EurotokenBaseFragment(R.layout.fragment_transfer_euro) 
         return null
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(
         requestCode: Int,
         resultCode: Int,

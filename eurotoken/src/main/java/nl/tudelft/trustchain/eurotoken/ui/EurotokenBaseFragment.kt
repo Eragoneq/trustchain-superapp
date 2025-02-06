@@ -110,6 +110,7 @@ open class EurotokenBaseFragment(contentLayoutId: Int = 0) : BaseFragment(conten
         super.onPause()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onCreateOptionsMenu(
         menu: Menu,
         inflater: MenuInflater
@@ -137,6 +138,7 @@ open class EurotokenBaseFragment(contentLayoutId: Int = 0) : BaseFragment(conten
         return getString(R.string.toggle_demo_mode, if (demoModeEnabled) "OFF" else "ON")
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         val myPublicKey = getIpv8().myPeer.publicKey.keyToBin().toHex()
         @Suppress("DEPRECATION")
