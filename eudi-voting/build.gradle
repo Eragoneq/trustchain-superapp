@@ -15,8 +15,10 @@ plugins {
     id 'kotlin-parcelize'
     id "androidx.navigation.safeargs.kotlin"
     id 'kotlin-kapt'
+    id 'org.jetbrains.kotlin.plugin.serialization'
 }
 apply plugin: 'com.google.dagger.hilt.android'
+apply plugin: 'kotlinx-serialization'
 
 repositories {
     mavenCentral()
@@ -84,7 +86,8 @@ dependencies {
 
     // Hilt
     api "com.google.dagger:hilt-android:$dagger_version"
-//    implementation "androidx.hilt:hilt-navigation-compose:1.2.0"
+    implementation "androidx.hilt:hilt-navigation-compose:1.2.0"
+    implementation 'androidx.hilt:hilt-navigation-fragment:1.2.0'
     kapt "com.google.dagger:hilt-android-compiler:$dagger_version"
 
     // Compose
@@ -100,13 +103,13 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation "androidx.compose.material:material-icons-extended"
     implementation("androidx.compose.material3.adaptive:adaptive")
     implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.5")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:$lifecycle_version")
     implementation("androidx.compose.runtime:runtime-livedata")
     implementation("androidx.compose.runtime:runtime-rxjava2")
+    implementation "androidx.navigation:navigation-compose:2.8.6"
 
     // Kotlin
     implementation "androidx.lifecycle:lifecycle-runtime:$lifecycle_version"
@@ -117,6 +120,7 @@ dependencies {
     implementation "androidx.navigation:navigation-runtime-ktx:$nav_version"
     implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
     implementation "androidx.fragment:fragment-ktx:$fragment_version"
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
     // Logging
     api 'io.github.microutils:kotlin-logging:1.7.7'

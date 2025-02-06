@@ -4,55 +4,47 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
-import androidx.core.os.bundleOf
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
+import androidx.fragment.app.viewModels
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
-import nl.tudelft.trustchain.common.util.viewBinding
-import nl.tudelft.trustchain.eudivoting.R
-import nl.tudelft.trustchain.eudivoting.data.Proposal
-import nl.tudelft.trustchain.eudivoting.data.ProposalRepository
-import nl.tudelft.trustchain.eudivoting.databinding.FragmentProposalListBinding
-import nl.tudelft.trustchain.eudivoting.databinding.ProposalListItemBinding
-import javax.inject.Inject
+import nl.tudelft.trustchain.eudivoting.data.TestDataGenerator
+import nl.tudelft.trustchain.eudivoting.ui.compose.ProposalDetailScreen
+import nl.tudelft.trustchain.eudivoting.ui.compose.ProposalListScreen
 
 @AndroidEntryPoint
-class ProposalListFragment : Fragment(R.layout.fragment_proposal_list) {
+class ProposalListFragment : Fragment() {
 
-    private val binding by viewBinding(FragmentProposalListBinding::bind)
+//    private val viewModel: VotingViewModel by viewModels()
 
-    @Inject
-    lateinit var proposalRepository: ProposalRepository
+    private val testProposals = TestDataGenerator.generateProposals(16)
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        val adapter = ProposalAdapter(proposalRepository.getAllProposals())
-        binding.proposalListView.adapter = adapter
-        binding.proposalListView.setOnItemClickListener { _, _, position, _ ->
-            val proposal = adapter.getItem(position)!!
-            findNavController().navigate(R.id.action_proposalListFragment_to_proposalDetailFragment, bundleOf("proposalId" to proposal.id))
-        }
-    }
-
-    private inner class ProposalAdapter(proposals: List<Proposal>) :
-        ArrayAdapter<Proposal>(requireContext(), R.layout.proposal_list_item, proposals) {
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = convertView ?: LayoutInflater.from(context)
-                .inflate(R.layout.proposal_list_item, parent, false)
-
-            val itemBinding = ProposalListItemBinding.bind(view)
-
-            getItem(position)?.let { proposal ->
-                itemBinding.proposalDescriptionTextView.text = "Proposal ${proposal.id}"
-                itemBinding.proposalDetailsTextView.text = proposal.description
-                itemBinding.proposalDeadlineTextView.text = "Deadline: ${proposal.deadline}"
-                itemBinding.proposalVotesTextView.text = "Votes: ${proposal.minVotes}"
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        return ComposeView(requireContext()).apply {
+            setContent {
+                val navController = rememberNavController()
+                NavHost(navController = navController, startDestination = "proposalList") {
+                    composable("proposalList") {
+                        ProposalListScreen(navController = navController)
+                    }
+                    composable("proposalDetail/{proposalId}") { backStackEntry ->
+                        val proposalId =
+                            backStackEntry.arguments?.getString("proposalId")?.toIntOrNull()
+                        val proposal = testProposals.find { it.id == proposalId }
+                        if (proposal != null) {
+                            ProposalDetailScreen(proposal)
+                        }
+                    }
+                }
             }
-
-            return view
         }
     }
 }

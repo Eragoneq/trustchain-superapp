@@ -12,7 +12,6 @@ import javax.inject.Inject
 class VotingViewModel @Inject constructor(private val proposalRepository: ProposalRepository): ViewModel() {
 
     private val logger = KotlinLogging.logger {}
-    private val proposals: List<Proposal> = proposalRepository.getAllProposals()
 
     init {
         logger.info { "VotingViewModel created" }
@@ -20,14 +19,18 @@ class VotingViewModel @Inject constructor(private val proposalRepository: Propos
         testProposals.forEach { proposalRepository.addProposal(it) }
     }
 
-    fun getProposals(): List<Proposal> {
-        return proposals
+    fun fetchProposals(): List<Proposal> {
+        return proposalRepository.getAllProposals()
     }
 
     override fun onCleared() {
         super.onCleared()
         logger.info { "VotingViewModel cleared" }
         proposalRepository.clearProposals()
+    }
+
+    fun getProposal(it: Int): Proposal? {
+        return proposalRepository.getProposal(it)
     }
 
 }
