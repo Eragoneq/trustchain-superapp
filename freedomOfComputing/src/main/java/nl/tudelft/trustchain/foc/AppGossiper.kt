@@ -424,31 +424,26 @@ class AppGossiper(
             return
         }
 
-        if (data != null) {
-            val torrentInfo = TorrentInfo.bdecode(data)
-            sessionActive = true
-            signal = CountDownLatch(1)
+        val torrentInfo = TorrentInfo.bdecode(data)
+        sessionActive = true
+        signal = CountDownLatch(1)
 
-            sessionManager.download(torrentInfo, appDirectory)
-            activity.runOnUiThread { printToast("Managed to fetch torrent info for $torrentName, trying to download it via torrent!") }
-            signal.await(1, TimeUnit.MINUTES)
+        sessionManager.download(torrentInfo, appDirectory)
+        activity.runOnUiThread { printToast("Managed to fetch torrent info for $torrentName, trying to download it via torrent!") }
+        signal.await(1, TimeUnit.MINUTES)
 
-            if (signal.count.toInt() == 1) {
-                activity.runOnUiThread { printToast("Attempt to download timed out for $torrentName!") }
-                signal = CountDownLatch(0)
-                sessionManager.find(torrentInfo.infoHash())?.let { torrentHandle ->
-                    sessionManager.remove(torrentHandle)
-                }
-                onTorrentDownloadFailure(torrentName, magnetInfoHash, peer)
-            } else {
-                onDownloadSuccess(magnetName)
+        if (signal.count.toInt() == 1) {
+            activity.runOnUiThread { printToast("Attempt to download timed out for $torrentName!") }
+            signal = CountDownLatch(0)
+            sessionManager.find(torrentInfo.infoHash())?.let { torrentHandle ->
+                sessionManager.remove(torrentHandle)
             }
-            sessionActive = false
-        } else {
-            logger.info { "Failed to retrieve the magnet" }
-            activity.runOnUiThread { printToast("Failed to retrieve magnet for $torrentName!") }
             onTorrentDownloadFailure(torrentName, magnetInfoHash, peer)
+        } else {
+            onDownloadSuccess(magnetName)
         }
+        sessionActive = false
+
     }
 
     private fun onDownloadSuccess(torrentName: String) {

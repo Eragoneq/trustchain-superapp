@@ -2,24 +2,24 @@
 
 buildscript {
     ext.kotlin_version = '2.1.10'
-    ext.coroutines_version = '1.8.0'
-    ext.ktlint_version = '1.1.1'
-    ext.ktlint_gradle_version = '12.1.0'
+    ext.coroutines_version = '1.10.1'
+    ext.ktlint_version = '1.5.0'
+    ext.ktlint_gradle_version = '12.1.2'
     ext.sqldelight_version = '2.0.1'
-    ext.nav_version = '2.5.3'
-    ext.fragment_version = '1.5.4'
-    ext.lifecycle_version = "2.5.1"
+    ext.nav_version = '2.8.6'
+    ext.fragment_version = '1.8.5'
+    ext.lifecycle_version = "2.8.7"
     ext.jlibtorrent_version = '1.2.17.0'
     ext.dokka_version = "0.10.1"
-    ext.dagger_version = '2.50'
+    ext.dagger_version = '2.55'
     ext.room_version = '2.6.1'
-    ext.mockk_version = '1.13.9'
+    ext.mockk_version = '1.13.16'
     ext.material_version = '1.7.0'
-    ext.core_version = '1.9.0'
-    ext.appcompat_version = '1.5.1'
-    ext.constraintlayout_version = '2.1.4'
-    ext.recyclerview_version = '1.2.1'
-    ext.recyclerview_adapter_version = '0.4'
+    ext.core_version = '1.13.0'
+    ext.appcompat_version = '1.7.0'
+    ext.constraintlayout_version = '2.2.0'
+    ext.recyclerview_version = '1.3.2'
+    ext.recyclerview_adapter_version = '0.9'
     ext.junit_version = '4.13.2'
     ext.android_junit_version = '1.1.5'
 
@@ -39,6 +39,7 @@ buildscript {
         classpath "org.jetbrains.dokka:dokka-gradle-plugin:$dokka_version"
         classpath 'com.google.gms:google-services:4.3.14'
         classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlin_version"
+        classpath "gradle.plugin.com.github.willir.rust:plugin:0.3.4"
     }
 }
 
@@ -50,14 +51,14 @@ allprojects {
         maven { url 'https://jitpack.io' }
     }
 
-    // Temp fix for issue https://github.com/mockk/mockk/issues/281
-    configurations.all {
-        resolutionStrategy {
-            force("org.objenesis:objenesis:2.6")
-            force('com.google.inject:guice:4.2.1')
-            force('com.google.inject:guice-multibindings:4.2.1')
-        }
-    }
+//    // Temp fix for issue https://github.com/mockk/mockk/issues/281
+//    configurations.all {
+//        resolutionStrategy {
+//            force("org.objenesis:objenesis:2.6")
+//            force('com.google.inject:guice:4.2.1')
+//            force('com.google.inject:guice-multibindings:4.2.1')
+//        }
+//    }
 
 }
 

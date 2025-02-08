@@ -3,12 +3,12 @@ package nl.tudelft.trustchain.app
 import android.app.Activity
 import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
-import nl.tudelft.trustchain.musicdao.MusicActivity
+//import nl.tudelft.trustchain.musicdao.MusicActivity
 import nl.tudelft.trustchain.foc.MainActivityFOC
 import nl.tudelft.trustchain.common.R
 import nl.tudelft.trustchain.currencyii.CurrencyIIMainActivity
 import nl.tudelft.trustchain.debug.DebugActivity
-import nl.tudelft.trustchain.eudivoting.VotingActivity
+import nl.tudelft.trustchain.smartphonedemocracy.SmartphoneDemocracyActivity
 import nl.tudelft.trustchain.eurotoken.EuroTokenMainActivity
 import nl.tudelft.trustchain.valuetransfer.ValueTransferMainActivity
 import nl.tudelft.trustchain.peerai.PeerAIActivity
@@ -45,12 +45,12 @@ enum class AppDefinition(
         R.color.metallic_gold,
         EuroTokenMainActivity::class.java
     ),
-    MUSIC_DAO(
-        android.R.drawable.ic_media_play,
-        "MusicDAO",
-        R.color.black,
-        MusicActivity::class.java
-    ),
+//    MUSIC_DAO(
+//        android.R.drawable.ic_media_play,
+//        "MusicDAO",
+//        R.color.black,
+//        MusicActivity::class.java
+//    ),
     FREEDOM_OF_COMPUTING(
         R.drawable.ic_naruto,
         "Freedom of Computing",
@@ -63,10 +63,10 @@ enum class AppDefinition(
         R.color.green,
         PeerAIActivity::class.java
     ),
-    EUDI_VOTING(
+    SMARTPHONE_DEMOCRACY(
         R.drawable.ic_blockchain_identity,
-        "EUDI Voting",
+        "Smartphone Democracy",
         R.color.democracy_blue,
-        VotingActivity::class.java
+        SmartphoneDemocracyActivity::class.java
     )
 }

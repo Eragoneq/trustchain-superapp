@@ -1,0 +1,89 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'nl.tudelft.trustchain.rustlibs'
+    compileSdk 34
+    ndkVersion "28.0.13004108"
+
+    defaultConfig {
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+apply plugin: "com.github.willir.rust.cargo-ndk-android"
+
+dependencies {
+
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+
+    // UniFFI
+    implementation 'net.java.dev.jna:jna:5.15.0@aar'
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines_version"
+
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+}
+
+cargoNdk {
+    module = "rust/prooflib"
+    librariesNames = ["libproofs.so"]
+    extraCargoBuildArguments = ["-p", "proofs"]
+    targets = ["arm", "arm64", "x86", "x86_64"]
+    buildType = "release"
+}
+
+android.libraryVariants.all { variant ->
+    def bDir = layout.buildDirectory.dir("generated/source/uniffi/${variant.name}/java").get()
+    def lDir = layout.buildDirectory.dir("../src/main/jniLibs/arm64-v8a/libproofs.so").get()
+    def generateBindings = tasks.register("generate${variant.name.capitalize()}UniFFIBindings", Exec) {
+        workingDir '../rust/prooflib'
+        commandLine 'cargo', 'run', '-p', 'uniffi-bindgen', 'generate', '--library', lDir, '--language', 'kotlin', '--out-dir', bDir, '--no-format'
+
+        dependsOn "buildCargoNdk${variant.name.capitalize()}"
+    }
+
+    variant.javaCompileProvider.get().dependsOn(generateBindings)
+
+    // Some stuff here is broken, since Android Tests don't run after running gradle build,
+    // but do otherwise. Also CI is funky.
+    tasks.named("compile${variant.name.capitalize()}Kotlin").configure {
+        dependsOn generateBindings
+    }
+
+    tasks.named("connectedDebugAndroidTest").configure {
+        dependsOn generateBindings
+    }
+
+    def sourceSet = variant.sourceSets.find { it.name == variant.name }
+    sourceSet.java.srcDir layout.buildDirectory.file("generated/source/uniffi/${variant.name}/java")
+
+    // UniFFI tutorial notes that they made several attempts like this but were unsuccessful coming
+    // to a good solution for forcing the directory to be marked as generated (short of checking in
+    // project files, I suppose).
+//    idea.module.generatedSourceDirs += file("${buildDir}/generated/source/uniffi/${variant.name}/java/uniffi")
+}

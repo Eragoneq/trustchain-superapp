@@ -241,11 +241,10 @@ class MusicActivity : AppCompatActivity() {
     }
 
     override fun startActivityForResult(
-        intent: Intent?,
+        intent: Intent,
         requestCode: Int
     ) {
         require(!(requestCode != -1 && requestCode and -0x10000 != 0)) { "Can only use lower 16 bits for requestCode" }
-        @Suppress("DEPRECATION")
         super.startActivityForResult(intent, requestCode)
     }
 

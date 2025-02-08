@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/voting_navigation"
+    app:startDestination="@id/introFragment">
+
+    <fragment
+        android:id="@+id/introFragment"
+        android:name="nl.tudelft.trustchain.smartphonedemocracy.ui.IntroFragment"
+        android:label="Home"
+        tools:layout="@layout/fragment_intro" />
+
+    <fragment
+        android:id="@+id/proposalListFragment"
+        android:name="nl.tudelft.trustchain.smartphonedemocracy.ui.ProposalListFragment"
+        android:label="List of Proposals" >
+        <action
+            android:id="@+id/action_proposalListFragment_to_proposalDetailFragment"
+            app:destination="@id/proposalDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/voteResultsFragment"
+        android:name="nl.tudelft.trustchain.smartphonedemocracy.ui.VoteResultsFragment"
+        android:label="Vote Results"
+        tools:layout="@layout/fragment_vote_results" />
+
+    <fragment
+        android:id="@+id/proposalDetailFragment"
+        android:name="nl.tudelft.trustchain.smartphonedemocracy.ui.ProposalDetailFragment"
+        android:label="Proposal Details"
+        tools:layout="@layout/fragment_proposal_details" >
+        <argument android:name="proposalId"
+            app:argType="integer"
+            android:defaultValue="0" />
+    </fragment>
+
+</navigation>

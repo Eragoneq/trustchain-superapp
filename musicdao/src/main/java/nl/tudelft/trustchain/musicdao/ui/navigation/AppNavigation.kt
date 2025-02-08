@@ -5,6 +5,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideIn
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.ExperimentalMaterialApi
@@ -92,11 +93,11 @@ fun AppNavigation(
             composable(
                 Screen.Donate.route,
                 arguments =
-                    listOf(
-                        navArgument("publicKey") {
-                            type = NavType.StringType
-                        }
-                    )
+                listOf(
+                    navArgument("publicKey") {
+                        type = NavType.StringType
+                    }
+                )
             ) { navBackStackEntry ->
                 DonateScreen(
                     bitcoinWalletViewModel = bitcoinWalletViewModel,
@@ -126,29 +127,29 @@ fun AppNavigation(
             composable(
                 Screen.DaoDetailRoute.route,
                 arguments =
-                    listOf(
-                        navArgument("daoId") {
-                            type = NavType.StringType
-                        }
-                    )
+                listOf(
+                    navArgument("daoId") {
+                        type = NavType.StringType
+                    }
+                )
             ) { navBackStackEntry ->
                 DaoDetailScreen(
                     navController = navController,
                     daoId =
-                        navBackStackEntry.arguments?.getString(
-                            "daoId"
-                        )!!,
+                    navBackStackEntry.arguments?.getString(
+                        "daoId"
+                    )!!,
                     daoViewModel = daoViewModel
                 )
             }
             composable(
                 Screen.ProposalDetailRoute.route,
                 arguments =
-                    listOf(
-                        navArgument("proposalId") {
-                            type = NavType.StringType
-                        }
-                    )
+                listOf(
+                    navArgument("proposalId") {
+                        type = NavType.StringType
+                    }
+                )
             ) { navBackStackEntry ->
                 ProposalDetailScreen(
                     navBackStackEntry.arguments?.getString(
@@ -160,11 +161,11 @@ fun AppNavigation(
             composable(
                 Screen.NewProposalRoute.route,
                 arguments =
-                    listOf(
-                        navArgument("daoId") {
-                            type = NavType.StringType
-                        }
-                    )
+                listOf(
+                    navArgument("daoId") {
+                        type = NavType.StringType
+                    }
+                )
             ) { navBackStackEntry ->
                 ProposalCreateScreen(
                     navBackStackEntry.arguments?.getString(
@@ -178,11 +179,11 @@ fun AppNavigation(
             composable(
                 Screen.Profile.route,
                 arguments =
-                    listOf(
-                        navArgument("publicKey") {
-                            type = NavType.StringType
-                        }
-                    )
+                listOf(
+                    navArgument("publicKey") {
+                        type = NavType.StringType
+                    }
+                )
             ) { navBackStackEntry ->
                 ProfileScreen(
                     navBackStackEntry.arguments?.getString(
@@ -194,11 +195,11 @@ fun AppNavigation(
             composable(
                 Screen.Release.route,
                 arguments =
-                    listOf(
-                        navArgument("releaseId") {
-                            type = NavType.StringType
-                        }
-                    )
+                listOf(
+                    navArgument("releaseId") {
+                        type = NavType.StringType
+                    }
+                )
             ) { navBackStackEntry ->
                 ReleaseScreen(
                     navBackStackEntry.arguments?.getString(
@@ -209,19 +210,7 @@ fun AppNavigation(
                 )
             }
             composable(
-                Screen.FullPlayerScreen.route,
-                enterTransition = {
-                    slideIntoContainer(
-                        AnimatedContentScope.SlideDirection.Up,
-                        animationSpec = tween(200)
-                    )
-                },
-                exitTransition = {
-                    slideOutOfContainer(
-                        AnimatedContentScope.SlideDirection.Down,
-                        animationSpec = tween(200)
-                    )
-                }
+                Screen.FullPlayerScreen.route
             ) {
                 FullPlayerScreen(playerViewModel)
             }

@@ -74,7 +74,7 @@ class AppLoader(
             setOf(
                 AppDefinition.CURRENCY_II.appName,
                 AppDefinition.VALUETRANSFER.appName,
-                AppDefinition.MUSIC_DAO.appName,
+//                AppDefinition.MUSIC_DAO.appName,
                 AppDefinition.EUROTOKEN.appName,
                 AppDefinition.FREEDOM_OF_COMPUTING.appName
             )

@@ -1,13 +1,3 @@
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
-apply plugin: 'androidx.navigation.safeargs'
-apply plugin: 'org.jlleitschuh.gradle.ktlint'
-apply plugin: 'com.google.gms.google-services'
-apply plugin: 'com.google.firebase.crashlytics'
-apply plugin: 'kotlinx-serialization'
-apply plugin: "dagger.hilt.android.plugin"
-apply plugin: "kotlin-kapt"
-
 buildscript {
     repositories {
         google()
@@ -20,6 +10,19 @@ buildscript {
 
     }
 }
+
+plugins {
+    id "com.google.devtools.ksp" version "2.1.10-1.0.29"
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'androidx.navigation.safeargs'
+apply plugin: 'org.jlleitschuh.gradle.ktlint'
+apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.firebase.crashlytics'
+apply plugin: 'kotlinx-serialization'
+apply plugin: "dagger.hilt.android.plugin"
 
 ktlint {
     version = "$ktlint_version"
@@ -123,8 +126,8 @@ dependencies {
     implementation project(':peerai')
     implementation project(':common')
     implementation project(':currencyii')
-    implementation project(':musicdao')
-    implementation project(':eudi-voting')
+    implementation project(':smartphone-democracy')
+//    implementation project(':musicdao')
 
     // AndroidX
     implementation "androidx.datastore:datastore-preferences:1.0.0"
@@ -159,7 +162,7 @@ dependencies {
 
     // Hilt
     implementation("com.google.dagger:hilt-android:$dagger_version")
-    kapt("com.google.dagger:hilt-android-compiler:$dagger_version")
+    ksp("com.google.dagger:hilt-android-compiler:$dagger_version")
 
     // Room
     implementation "androidx.room:room-runtime:$room_version"
@@ -187,7 +190,7 @@ dependencies {
         exclude module: 'lazysodium-java'
     }
     implementation project(':ipv8-android')
-    kapt 'com.google.dagger:dagger-compiler:2.50'
+    ksp "com.google.dagger:dagger-compiler:$dagger_version"
 }
 
 

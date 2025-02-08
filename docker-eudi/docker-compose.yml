@@ -1,5 +1,3 @@
-version: '3.3'
-
 services:
   verifier:
     image: ghcr.io/eu-digital-identity-wallet/eudi-srv-web-verifier-endpoint-23220-4-kt:v0.1.9
@@ -8,18 +6,22 @@ services:
       - "8080:8080"
     environment:
       VERIFIER_PUBLICURL: "https://192.168.178.172"
-      VERIFIER_RESPONSE_MODE: "DirectPost"
-      VERIFIER_CLIENTID: "EudiTest"
-      VERIFIER_CLIENTIDSCHEME: "pre-registered"
+      VERIFIER_RESPONSE_MODE: "DirectPostJwt"
+      VERIFIER_CLIENTID: "192.168.178.172"
+      VERIFIER_CLIENTIDSCHEME: "x509_san_dns"
       VERIFIER_JAR_SIGNING_ALGORITHM: "ES256"
       VERIFIER_JAR_SIGNING_KEY: "LoadFromKeystore"
-      VERIFIER_JAR_SIGNING_KEY_KEYSTORE: "file:///certs/keystore.jks"
+      VERIFIER_JAR_SIGNING_KEY_KEYSTORE: "file:///certs/EUDI_Voting.p12"
       VERIFIER_JAR_SIGNING_KEY_KEYSTORE_TYPE: "PKCS12"
       VERIFIER_JAR_SIGNING_KEY_KEYSTORE_PASSWORD: "qwerty"
-      VERIFIER_JAR_SIGNING_KEY_ALIAS: "verifierkey"
+      VERIFIER_JAR_SIGNING_KEY_ALIAS: "eudi voting"
       VERIFIER_JAR_SIGNING_KEY_PASSWORD: "qwerty"
+#      TRUSTEDISSUERS_KEYSTORE_PATH: "file:///certs/EUDI_Voting.p12"
+#      TRUSTEDISSUERS_KEYSTORE_TYPE: "PKCS12"
+#      TRUSTEDISSUERS_KEYSTORE_PASSWORD: "qwerty"
     volumes:
       - ./keystore.jks:/certs/keystore.jks
+      - ./EUDI_Voting.p12:/certs/EUDI_Voting.p12
 
   verifier-ui:
     image: ghcr.io/eu-digital-identity-wallet/eudi-web-verifier:latest
@@ -38,3 +40,8 @@ services:
     volumes:
       - ./haproxy.conf:/usr/local/etc/haproxy/haproxy.cfg
       - ./haproxy.pem:/etc/ssl/certs/mysite.pem
+  test-env:
+    image: alpine:latest
+    container_name: test-env
+    command: sh -c "apk add --no-cache curl && while true; do curl -k https://haproxy:443/api/v1/status; sleep 30; done"
+    network_mode: host

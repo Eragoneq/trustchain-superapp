@@ -118,13 +118,13 @@
             android:stateNotNeeded="true"
             android:windowSoftInputMode="stateAlwaysHidden" />
 
-        <activity
-            android:name="nl.tudelft.trustchain.musicdao.MusicActivity"
-            android:exported="true"
-            android:label="Music App"
-            android:parentActivityName=".ui.dashboard.DashboardActivity"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.MusicDaoTheme" />
+<!--        <activity-->
+<!--            android:name="nl.tudelft.trustchain.musicdao.MusicActivity"-->
+<!--            android:exported="true"-->
+<!--            android:label="Music App"-->
+<!--            android:parentActivityName=".ui.dashboard.DashboardActivity"-->
+<!--            android:screenOrientation="portrait"-->
+<!--            android:theme="@style/Theme.MusicDaoTheme" />-->
 
 
         <activity
@@ -139,10 +139,10 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <service
-            android:name="nl.tudelft.trustchain.musicdao.core.repositories.MusicGossipingService"
-            android:enabled="true"
-            android:exported="false" />
+<!--        <service-->
+<!--            android:name="nl.tudelft.trustchain.musicdao.core.repositories.MusicGossipingService"-->
+<!--            android:enabled="true"-->
+<!--            android:exported="false" />-->
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"

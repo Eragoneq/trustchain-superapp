@@ -60,11 +60,11 @@ import nl.tudelft.trustchain.common.bitcoin.WalletService
 import nl.tudelft.trustchain.common.eurotoken.GatewayStore
 import nl.tudelft.trustchain.common.eurotoken.TransactionRepository
 import nl.tudelft.trustchain.currencyii.CoinCommunity
-import nl.tudelft.trustchain.eudivoting.community.EudiVoteCommunity
+import nl.tudelft.trustchain.smartphonedemocracy.ipv8.SmartphoneDemocracyCommunity
 import nl.tudelft.trustchain.eurotoken.community.EuroTokenCommunity
 import nl.tudelft.trustchain.eurotoken.db.TrustStore
-import nl.tudelft.trustchain.musicdao.core.dao.DaoCommunity
-import nl.tudelft.trustchain.musicdao.core.ipv8.MusicCommunity
+//import nl.tudelft.trustchain.musicdao.core.dao.DaoCommunity
+//import nl.tudelft.trustchain.musicdao.core.ipv8.MusicCommunity
 import nl.tudelft.trustchain.valuetransfer.community.IdentityCommunity
 import nl.tudelft.trustchain.valuetransfer.community.PeerChatCommunity
 import nl.tudelft.trustchain.valuetransfer.db.IdentityStore
@@ -108,8 +108,8 @@ class TrustChainApplication : Application() {
                         createWalletCommunity(),
                         createMarketCommunity(),
                         createCoinCommunity(),
-                        createDaoCommunity(),
-                        createMusicCommunity(),
+//                        createDaoCommunity(),
+//                        createMusicCommunity(),
                         createIdentityCommunity(),
                         createFOCCommunity(),
                         createEudiVoteCommunity(),
@@ -312,23 +312,26 @@ class TrustChainApplication : Application() {
         )
     }
 
-    private fun createEudiVoteCommunity(): OverlayConfiguration<EudiVoteCommunity> {
+    private fun createEudiVoteCommunity(): OverlayConfiguration<SmartphoneDemocracyCommunity> {
+        val settings = TrustChainSettings()
+        val driver = AndroidSqliteDriver(Database.Schema, this, "v1-smart-dem-trustchain.db")
+        val store = TrustChainSQLiteStore(Database(driver))
         val randomWalk = RandomWalk.Factory()
         return OverlayConfiguration(
-            Overlay.Factory(EudiVoteCommunity::class.java),
+            SmartphoneDemocracyCommunity.Factory(settings, store),
             listOf(randomWalk)
         )
     }
 
-    private fun createDaoCommunity(): OverlayConfiguration<DaoCommunity> {
-        val randomWalk = RandomWalk.Factory()
-        val nsd = NetworkServiceDiscovery.Factory(getSystemService()!!)
-
-        return OverlayConfiguration(
-            Overlay.Factory(DaoCommunity::class.java),
-            listOf(randomWalk, nsd)
-        )
-    }
+//    private fun createDaoCommunity(): OverlayConfiguration<DaoCommunity> {
+//        val randomWalk = RandomWalk.Factory()
+//        val nsd = NetworkServiceDiscovery.Factory(getSystemService()!!)
+//
+//        return OverlayConfiguration(
+//            Overlay.Factory(DaoCommunity::class.java),
+//            listOf(randomWalk, nsd)
+//        )
+//    }
 
     private fun createCoinCommunity(): OverlayConfiguration<CoinCommunity> {
         val randomWalk = RandomWalk.Factory()
@@ -340,17 +343,17 @@ class TrustChainApplication : Application() {
         )
     }
 
-    private fun createMusicCommunity(): OverlayConfiguration<MusicCommunity> {
-        val settings = TrustChainSettings()
-        // TODO: Re-concile this community with Reccomender Community
-        val driver = AndroidSqliteDriver(Database.Schema, this, "music-private.db")
-        val store = TrustChainSQLiteStore(Database(driver))
-        val randomWalk = RandomWalk.Factory()
-        return OverlayConfiguration(
-            MusicCommunity.Factory(settings, store),
-            listOf(randomWalk)
-        )
-    }
+//    private fun createMusicCommunity(): OverlayConfiguration<MusicCommunity> {
+//        val settings = TrustChainSettings()
+//        // TODO: Re-concile this community with Reccomender Community
+//        val driver = AndroidSqliteDriver(Database.Schema, this, "music-private.db")
+//        val store = TrustChainSQLiteStore(Database(driver))
+//        val randomWalk = RandomWalk.Factory()
+//        return OverlayConfiguration(
+//            MusicCommunity.Factory(settings, store),
+//            listOf(randomWalk)
+//        )
+//    }
 
     private fun createFOCCommunity(): OverlayConfiguration<FOCCommunity> {
         val randomWalk = RandomWalk.Factory()
